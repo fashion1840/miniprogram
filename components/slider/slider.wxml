@@ -1,0 +1,16 @@
+<!--components/slider/slider.wxml-->
+<view class="slider-component">
+  <view class="slider-header" wx:if="{{label || showValue}}">
+    <text class="slider-label">{{label}}</text>
+    <text class="slider-value">{{value}}{{unit}}</text>
+  </view>
+  <slider 
+    min="{{min}}" 
+    max="{{max}}" 
+    step="{{step}}"
+    value="{{value}}"
+    bindchange="onChange"
+    show-value="{{false}}"
+    activeColor="#4a90e2"
+  />
+</view>

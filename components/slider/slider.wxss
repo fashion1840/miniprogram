@@ -1,0 +1,23 @@
+/* components/slider/slider.wxss */
+
+.slider-component {
+  width: 100%;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.slider-label {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.slider-value {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}

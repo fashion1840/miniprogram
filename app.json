@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/editor/editor"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "文字转图片",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f0f2f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

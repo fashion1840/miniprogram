@@ -1,0 +1,110 @@
+/* app.wxss - 全局样式 */
+
+/* 主题变量 */
+page {
+  --primary-color: #4a90e2;
+  --secondary-color: #f5a623;
+  --text-color: #333333;
+  --text-light: #666666;
+  --text-white: #ffffff;
+  --bg-color: #f8f8f8;
+  --bg-white: #ffffff;
+  --border-color: #e0e0e0;
+  --shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+  
+  /* 字体大小 */
+  --font-xs: 24rpx;
+  --font-sm: 26rpx;
+  --font-md: 28rpx;
+  --font-lg: 32rpx;
+  --font-xl: 36rpx;
+  
+  /* 间距 */
+  --spacing-xs: 10rpx;
+  --spacing-sm: 20rpx;
+  --spacing-md: 30rpx;
+  --spacing-lg: 40rpx;
+  
+  background-color: var(--bg-color);
+  font-size: var(--font-md);
+  color: var(--text-color);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* 通用样式类 */
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 按钮样式 */
+.btn {
+  padding: 20rpx 40rpx;
+  border-radius: 8rpx;
+  font-size: var(--font-md);
+  text-align: center;
+  transition: opacity 0.2s;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--text-white);
+}
+
+.btn-default {
+  background-color: var(--bg-white);
+  color: var(--text-color);
+  border: 1rpx solid var(--border-color);
+}
+
+/* 安全区域适配 */
+.safe-area-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-top {
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+}

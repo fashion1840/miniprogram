@@ -1,0 +1,229 @@
+<!--pages/editor/editor.wxml-->
+<view class="container">
+  <!-- 顶部预览区 -->
+  <view class="preview-section">
+    <view class="preview-container {{ratioClass}}">
+      <canvas type="2d" id="previewCanvas" class="preview-canvas"></canvas>
+    </view>
+  </view>
+
+  <!-- 底部编辑面板 -->
+  <view class="editor-container">
+    <scroll-view class="editor-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="editor-content">
+        <!-- 文字输入 -->
+        <view class="card">
+          <view class="card-header">
+            <text class="card-title">文字内容</text>
+            <view class="header-actions">
+              <text class="card-subtitle">{{charCount}} 字</text>
+              <view wx:if="{{text.length > 0}}" class="clear-btn" bindtap="onClearText">
+                <text class="clear-icon">×</text>
+              </view>
+            </view>
+          </view>
+          <view class="textarea-wrapper">
+            <textarea 
+              class="main-textarea" 
+              placeholder="想说的话，都在这里..." 
+              maxlength="-1"
+              value="{{text}}"
+              bindinput="onTextInput"
+              cursor-spacing="100"
+            ></textarea>
+          </view>
+        </view>
+
+        <!-- 样式控制：比例 & 背景 -->
+        <view class="card">
+          <view class="card-header">
+            <text class="card-title">画布比例</text>
+          </view>
+          <view class="option-grid">
+            <view 
+              wx:for="{{ratios}}" 
+              wx:key="value"
+              class="option-item {{currentRatio === item.value ? 'active' : ''}}"
+              bindtap="onRatioChange"
+              data-ratio="{{item.value}}"
+            >
+              <view class="ratio-icon ratio-icon-{{item.value === '1:1' ? '1-1' : item.value === '3:4' ? '3-4' : item.value === '4:3' ? '4-3' : '9-16'}}"></view>
+              <text>{{item.label}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 背景设置 -->
+        <view class="card">
+          <view class="card-header">
+            <text class="card-title">背景设置</text>
+            <view class="tab-pills">
+              <view class="pill {{activeTab === 'gradient' ? 'active' : ''}}" bindtap="onBgStyleChange" data-style="gradient">渐变</view>
+              <view class="pill {{activeTab === 'solid' ? 'active' : ''}}" bindtap="onBgStyleChange" data-style="solid">纯色</view>
+              <view class="pill {{activeTab === 'texture' ? 'active' : ''}}" bindtap="onBgStyleChange" data-style="texture">纹理</view>
+              <view class="pill {{activeTab === 'custom' ? 'active' : ''}}" bindtap="onBgStyleChange" data-style="custom">图片</view>
+            </view>
+          </view>
+          
+          <view class="bg-control-content">
+            <!-- 渐变选择 -->
+            <view wx:if="{{activeTab === 'gradient'}}" class="bg-grid">
+              <view 
+                wx:for="{{gradients}}" 
+                wx:key="id"
+                class="bg-grid-item {{bgStyle === 'gradient' && bgIndex === index ? 'active' : ''}}"
+                bindtap="onBgSelect"
+                data-index="{{index}}"
+              >
+                <view class="gradient-preview" style="background: linear-gradient({{item.direction}}, {{item.color1}}, {{item.color2}});"></view>
+              </view>
+            </view>
+            
+            <!-- 纯色选择 -->
+            <view wx:if="{{activeTab === 'solid'}}" class="bg-grid">
+              <view 
+                wx:for="{{solidColors}}" 
+                wx:key="*this"
+                class="bg-grid-item {{bgStyle === 'solid' && bgColor === item ? 'active' : ''}}"
+                bindtap="onSolidColorChange"
+                data-color="{{item}}"
+              >
+                <view class="color-preview" style="background-color: {{item}};"></view>
+              </view>
+            </view>
+            
+            <!-- 纹理选择 - 与渐变/纯色统一样式 -->
+            <view wx:if="{{activeTab === 'texture'}}" class="bg-grid">
+              <view 
+                wx:for="{{textures}}" 
+                wx:key="id"
+                class="bg-grid-item {{bgStyle === 'texture' && textureIndex === index ? 'active' : ''}}"
+                bindtap="onTextureSelect"
+                data-index="{{index}}"
+              >
+                <view class="texture-preview texture-{{item.pattern}}">
+                  <view wx:if="{{item.pattern === 'paper'}}" class="preview-paper"></view>
+                  <view wx:if="{{item.pattern === 'grid'}}" class="preview-grid"></view>
+                  <view wx:if="{{item.pattern === 'dots'}}" class="preview-dots"></view>
+                  <view wx:if="{{item.pattern === 'horizontal'}}" class="preview-horizontal"></view>
+                  <view wx:if="{{item.pattern === 'diagonal'}}" class="preview-diagonal"></view>
+                  <view wx:if="{{item.pattern === 'cross'}}" class="preview-cross"></view>
+                  <view wx:if="{{item.pattern === 'vertical'}}" class="preview-vertical"></view>
+                  <view wx:if="{{item.pattern === 'checkerboard'}}" class="preview-checkerboard"></view>
+                  <view wx:if="{{item.pattern === 'noise'}}" class="preview-noise"></view>
+                  <view wx:if="{{item.pattern === 'waves'}}" class="preview-waves"></view>
+                  <view wx:if="{{item.pattern === 'hexagon'}}" class="preview-hexagon"></view>
+                  <view wx:if="{{item.pattern === 'dotgrid'}}" class="preview-dotgrid"></view>
+                </view>
+              </view>
+            </view>
+            
+            <!-- 图片上传 - 3x3 大区域 -->
+            <view wx:if="{{activeTab === 'custom'}}" class="custom-upload-grid">
+              <view class="custom-upload-item {{bgStyle === 'custom' && bgImage ? 'active' : ''}}" bindtap="onUploadBackground">
+                <view wx:if="{{!bgImage}}" class="upload-placeholder-large">
+                  <view class="upload-icon-large">+</view>
+                  <text class="upload-text">选择图片</text>
+                </view>
+                <image wx:else src="{{bgImage}}" mode="aspectFill" class="upload-image-large"></image>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 字体排版 -->
+        <view class="card">
+          <view class="card-header">
+            <text class="card-title">文字排版</text>
+          </view>
+          
+          <view class="setting-group">
+            <view class="setting-item">
+              <text>对齐</text>
+              <view class="segmented-control">
+                <view class="segment {{textAlign === 'left' ? 'active' : ''}}" bindtap="onTextAlignChange" data-align="left">左</view>
+                <view class="segment {{textAlign === 'center' ? 'active' : ''}}" bindtap="onTextAlignChange" data-align="center">中</view>
+                <view class="segment {{textAlign === 'right' ? 'active' : ''}}" bindtap="onTextAlignChange" data-align="right">右</view>
+              </view>
+            </view>
+
+            <view class="setting-item">
+              <text>字体</text>
+              <picker mode="selector" range="{{fonts}}" range-key="name" bindchange="onFontChange">
+                <view class="picker-box">{{fonts[fontIndex].name}}</view>
+              </picker>
+            </view>
+
+            <view class="setting-item column">
+              <slider-component 
+                label="字号" 
+                min="24" 
+                max="120" 
+                value="{{fontSize}}" 
+                unit="px"
+                bind:change="onFontSizeChange"
+              />
+            </view>
+
+            <view class="setting-item column">
+              <slider-component 
+                label="行高" 
+                min="1" 
+                max="3" 
+                step="0.1"
+                value="{{lineHeight}}" 
+                bind:change="onLineHeightChange"
+              />
+            </view>
+
+            <view class="setting-item column">
+              <slider-component 
+                label="页边距" 
+                min="20" 
+                max="200" 
+                value="{{padding}}" 
+                unit="rpx"
+                bind:change="onPaddingChange"
+              />
+            </view>
+
+            <view class="setting-item">
+              <text>文字阴影</text>
+              <switch checked="{{shadowEnabled}}" bindchange="onShadowToggle" color="#4a90e2"/>
+            </view>
+          </view>
+        </view>
+
+        <!-- 字体颜色 -->
+        <view class="card">
+          <view class="card-header">
+            <text class="card-title">字体颜色</text>
+          </view>
+          <view class="color-grid">
+            <view 
+              wx:for="{{fontColors}}" 
+              wx:key="*this"
+              class="color-grid-item {{fontColor === item ? 'active' : ''}}"
+              bindtap="onFontColorChange"
+              data-color="{{item}}"
+            >
+              <view class="color-circle" style="background-color: {{item}};"></view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 底部占位 -->
+        <view class="bottom-safe-area"></view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 悬浮下载按钮 -->
+  <view class="action-bar">
+    <button class="primary-btn {{isGenerating ? 'loading' : ''}}" bindtap="onDownload">
+      <view class="btn-content">
+        <text>{{isGenerating ? '保存中...' : '保存图片'}}</text>
+      </view>
+    </button>
+  </view>
+</view>

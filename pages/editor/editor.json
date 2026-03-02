@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "slider-component": "../../components/slider/slider"
+  },
+  "navigationBarTitleText": "绘字",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": false,
+  "backgroundTextStyle": "dark"
+}
