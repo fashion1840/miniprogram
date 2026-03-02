@@ -4,6 +4,17 @@
   <view class="preview-section">
     <view class="preview-container {{ratioClass}}">
       <canvas type="2d" id="previewCanvas" class="preview-canvas"></canvas>
+      <!-- 空状态引导 -->
+      <view wx:if="{{!text || text.length === 0}}" class="empty-state {{showEmptyGuide ? 'show' : ''}}">
+        <view class="empty-icon">
+          <text class="icon-text">✍️</text>
+        </view>
+        <text class="empty-title">开始创作</text>
+        <text class="empty-desc">在下方输入文字，生成精美图片</text>
+        <view class="empty-demo" bindtap="loadDemoText">
+          <text class="demo-text">试试示例文案 ></text>
+        </view>
+      </view>
     </view>
   </view>
 
@@ -17,8 +28,13 @@
             <text class="card-title">文字内容</text>
             <view class="header-actions">
               <text class="card-subtitle">{{charCount}} 字</text>
-              <view wx:if="{{text.length > 0}}" class="clear-btn" bindtap="onClearText">
-                <text class="clear-icon">×</text>
+              <view class="action-btns">
+                <view class="reset-btn" bindtap="onResetAll">
+                  <text class="reset-text">重置</text>
+                </view>
+                <view wx:if="{{text.length > 0}}" class="clear-btn" bindtap="onClearText">
+                  <text class="clear-icon">×</text>
+                </view>
               </view>
             </view>
           </view>
@@ -161,6 +177,7 @@
                 max="120" 
                 value="{{fontSize}}" 
                 unit="px"
+                bind:changing="onFontSizeChanging"
                 bind:change="onFontSizeChange"
               />
             </view>
@@ -172,6 +189,7 @@
                 max="3" 
                 step="0.1"
                 value="{{lineHeight}}" 
+                bind:changing="onLineHeightChanging"
                 bind:change="onLineHeightChange"
               />
             </view>
@@ -183,6 +201,7 @@
                 max="200" 
                 value="{{padding}}" 
                 unit="rpx"
+                bind:changing="onPaddingChanging"
                 bind:change="onPaddingChange"
               />
             </view>

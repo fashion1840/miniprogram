@@ -65,10 +65,17 @@ Page({
     shadowEnabled: false,
     
     // 生成状态
-    isGenerating: false
+    isGenerating: false,
+    
+    // 空状态引导显示
+    showEmptyGuide: false
   },
 
   onLoad() {
+    // 延迟显示空状态引导，避免初始闪烁
+    setTimeout(() => {
+      this.setData({ showEmptyGuide: true });
+    }, 500);
     // 统一从本地存储恢复状态
     const hasSavedState = this.restoreState();
     
@@ -194,10 +201,65 @@ Page({
     this.renderPreview();
   },
 
+  // 加载示例文案
+  loadDemoText() {
+    const demoTexts = [
+      '生活明朗，万物可爱',
+      '保持热爱，奔赴山海',
+      '凡是过往，皆为序章',
+      '心有猛虎，细嗅蔷薇',
+      '星光不问赶路人，时光不负有心人'
+    ];
+    const randomText = demoTexts[Math.floor(Math.random() * demoTexts.length)];
+    this.setData({ 
+      text: randomText, 
+      charCount: randomText.length,
+      showEmptyGuide: false 
+    });
+    this.renderPreview();
+    this.saveState();
+  },
+
   onClearText() {
     this.setData({ text: '', charCount: 0 });
     this.renderPreview();
     this.saveState();
+  },
+
+  // 一键重置所有样式
+  onResetAll() {
+    wx.showModal({
+      title: '恢复默认',
+      content: '确定要重置所有设置吗？',
+      confirmColor: '#4facfe',
+      success: (res) => {
+        if (res.confirm) {
+          const defaultData = {
+            text: '',
+            charCount: 0,
+            currentRatio: '3:4',
+            ratioClass: 'ratio-3-4',
+            bgStyle: 'gradient',
+            activeTab: 'gradient',
+            bgIndex: 0,
+            bgColor: '#667eea',
+            bgImage: '',
+            textureIndex: 0,
+            fontIndex: 0,
+            fontSize: 32,
+            fontColor: '#ffffff',
+            textAlign: 'center',
+            lineHeight: 1.5,
+            padding: 40,
+            shadowEnabled: false
+          };
+          this.setData(defaultData);
+          this.initCanvas();
+          this.saveState();
+          wx.showToast({ title: '已重置', icon: 'success' });
+        }
+      }
+    });
   },
 
   onRatioChange(e) {
@@ -303,19 +365,34 @@ Page({
     this.renderPreview();
   },
 
+  // 字号 - 拖动时实时预览
+  onFontSizeChanging(e) {
+    this.setData({ fontSize: e.detail.value });
+    this.doRender();
+  },
   onFontSizeChange(e) {
     this.setData({ fontSize: e.detail.value });
-    this.renderPreview();
+    this.saveState();
   },
 
+  // 行高 - 拖动时实时预览
+  onLineHeightChanging(e) {
+    this.setData({ lineHeight: e.detail.value });
+    this.doRender();
+  },
   onLineHeightChange(e) {
     this.setData({ lineHeight: e.detail.value });
-    this.renderPreview();
+    this.saveState();
   },
 
+  // 页边距 - 拖动时实时预览
+  onPaddingChanging(e) {
+    this.setData({ padding: e.detail.value });
+    this.doRender();
+  },
   onPaddingChange(e) {
     this.setData({ padding: e.detail.value });
-    this.renderPreview();
+    this.saveState();
   },
 
   onShadowToggle(e) {

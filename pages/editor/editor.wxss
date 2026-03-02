@@ -53,6 +53,81 @@
   pointer-events: none;
 }
 
+/* 空状态引导 */
+.empty-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.empty-state.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30rpx;
+  box-shadow: 0 10rpx 30rpx rgba(102, 126, 234, 0.3);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10rpx); }
+}
+
+.icon-text {
+  font-size: 60rpx;
+}
+
+.empty-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  font-size: 26rpx;
+  color: #7f8c8d;
+  margin-bottom: 40rpx;
+}
+
+.empty-demo {
+  padding: 16rpx 40rpx;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 40rpx;
+  box-shadow: 0 8rpx 20rpx rgba(79, 172, 254, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.empty-demo:active {
+  transform: scale(0.95);
+}
+
+.demo-text {
+  font-size: 26rpx;
+  color: #ffffff;
+  font-weight: 500;
+}
+
 /* 编辑面板容器 */
 .editor-container {
   flex: 1;
@@ -61,7 +136,7 @@
   border-top-right-radius: 48rpx;
   box-shadow: 0 -12rpx 40rpx rgba(0,0,0,0.06);
   overflow: hidden;
-  margin-top: 0; /* 移除负边距，避免重叠感 */
+  margin-top: 0;
   z-index: 10;
 }
 
@@ -77,7 +152,7 @@
 .card {
   background-color: #fff;
   border-radius: 24rpx;
-  margin-bottom: 40rpx; /* 增加间距 */
+  margin-bottom: 40rpx;
 }
 
 .card-header {
@@ -117,6 +192,30 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
+}
+
+.action-btns {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.reset-btn {
+  padding: 8rpx 20rpx;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 24rpx;
+  transition: all 0.2s ease;
+}
+
+.reset-btn:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+.reset-text {
+  font-size: 24rpx;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .clear-btn {

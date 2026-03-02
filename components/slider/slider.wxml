@@ -9,6 +9,7 @@
     max="{{max}}" 
     step="{{step}}"
     value="{{value}}"
+    bindchanging="onChanging"
     bindchange="onChange"
     show-value="{{false}}"
     activeColor="#4a90e2"
