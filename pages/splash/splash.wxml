@@ -1,0 +1,17 @@
+<!--pages/splash/splash.wxml-->
+<view class="splash-container">
+  <view class="splash-content {{fadeIn ? 'fade-in' : ''}}">
+    <view class="logo-wrapper">
+      <view class="logo-icon">
+        <text class="logo-text">文</text>
+      </view>
+    </view>
+    <text class="app-name">文字转图片</text>
+    <view class="app-slogan">
+      <text>让文字更有温度</text>
+    </view>
+  </view>
+  <view class="splash-footer {{fadeIn ? 'fade-in-delay' : ''}}">
+    <text class="version">V 2.0</text>
+  </view>
+</view>

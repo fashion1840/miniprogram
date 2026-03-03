@@ -56,7 +56,7 @@ Page({
     // 字体（从配置文件引入）
     fonts: fonts,
     fontIndex: 0,
-    fontSize: 32,
+    fontSize: 50,
     fontColor: '#ffffff',
     fontColors: fontColors,
     textAlign: 'center',
@@ -246,7 +246,7 @@ Page({
             bgImage: '',
             textureIndex: 0,
             fontIndex: 0,
-            fontSize: 32,
+            fontSize: 50,
             fontColor: '#ffffff',
             textAlign: 'center',
             lineHeight: 1.5,

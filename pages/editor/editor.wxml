@@ -6,14 +6,7 @@
       <canvas type="2d" id="previewCanvas" class="preview-canvas"></canvas>
       <!-- 空状态引导 -->
       <view wx:if="{{!text || text.length === 0}}" class="empty-state {{showEmptyGuide ? 'show' : ''}}">
-        <view class="empty-icon">
-          <text class="icon-text">✍️</text>
-        </view>
-        <text class="empty-title">开始创作</text>
-        <text class="empty-desc">在下方输入文字，生成精美图片</text>
-        <view class="empty-demo" bindtap="loadDemoText">
-          <text class="demo-text">试试示例文案 ></text>
-        </view>
+        <text class="empty-hint">输入文字，生成精美图片</text>
       </view>
     </view>
   </view>

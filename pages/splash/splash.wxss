@@ -1,0 +1,100 @@
+/* pages/splash/splash.wxss - 极简现代风格 */
+
+.splash-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  position: relative;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(20rpx);
+}
+
+.fade-in {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logo - 简洁圆形 */
+.logo-wrapper {
+  width: 160rpx;
+  height: 160rpx;
+  margin-bottom: 48rpx;
+}
+
+.logo-icon {
+  width: 100%;
+  height: 100%;
+  background: #2c3e50;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 32rpx rgba(44, 62, 80, 0.15);
+}
+
+.logo-text {
+  font-size: 80rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* 标题 - 简洁无衬线 */
+.app-name {
+  font-size: 48rpx;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 16rpx;
+  letter-spacing: 4rpx;
+}
+
+/* 标语 - 柔和灰色 */
+.app-slogan {
+  padding: 12rpx 32rpx;
+  background: #fff;
+  border-radius: 8rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.app-slogan text {
+  font-size: 26rpx;
+  color: #7f8c8d;
+  font-weight: 400;
+}
+
+/* 底部版本号 */
+.splash-footer {
+  position: absolute;
+  bottom: 80rpx;
+  opacity: 0;
+}
+
+.fade-in-delay {
+  animation: fadeIn 0.5s ease 0.4s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.version {
+  font-size: 24rpx;
+  color: #bdc3c7;
+  font-weight: 400;
+}

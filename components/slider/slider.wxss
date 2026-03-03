@@ -13,11 +13,12 @@
 
 .slider-label {
   font-size: 26rpx;
-  color: #666;
+  color: #2c3e50;
+  font-weight: 500;
 }
 
 .slider-value {
   font-size: 26rpx;
-  color: #333;
+  color: #7f8c8d;
   font-weight: 500;
 }
