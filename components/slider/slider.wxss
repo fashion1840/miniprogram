@@ -1,4 +1,4 @@
-/* components/slider/slider.wxss */
+/* components/slider/slider.wxss - Brutalism Style */
 
 .slider-component {
   width: 100%;
@@ -8,17 +8,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
 }
 
 .slider-label {
-  font-size: 26rpx;
-  color: #2c3e50;
-  font-weight: 500;
+  font-size: 28rpx;
+  color: #000;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .slider-value {
-  font-size: 26rpx;
-  color: #7f8c8d;
-  font-weight: 500;
+  font-size: 28rpx;
+  color: #000;
+  font-weight: 900;
+  background: #ffe66d;
+  padding: 4rpx 16rpx;
+  border: 3rpx solid #000;
 }
