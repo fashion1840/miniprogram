@@ -26,13 +26,7 @@
               <view class="toolbar-btn bold" catchtap="insertBold">B</view>
               <view class="toolbar-btn italic" catchtap="insertItalic">I</view>
               <view class="toolbar-btn underline" catchtap="insertUnderline">U</view>
-              <view class="toolbar-btn highlight" catchtap="insertHighlight">
-                <view class="highlight-icon" aria-hidden="true">
-                  <view class="highlight-brush-handle"></view>
-                  <view class="highlight-brush-ferrule"></view>
-                  <view class="highlight-brush-head"></view>
-                </view>
-              </view>
+              <view class="toolbar-btn highlight" catchtap="insertHighlight">H</view>
             </view>
           </view>
           <view class="textarea-wrapper">

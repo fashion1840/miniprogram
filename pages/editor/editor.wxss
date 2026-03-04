@@ -285,48 +285,18 @@
 }
 
 .toolbar-btn.highlight {
-  position: relative;
+  width: 50rpx;
+  height: 44rpx;
+  font-weight: 700;
+  background: #ffe66d;
+  border: 2rpx solid #000;
+  border-radius: 8rpx;
+  box-shadow: 2rpx 2rpx 0 #000;
 }
 
-.highlight-icon {
-  position: relative;
-  width: 30rpx;
-  height: 30rpx;
-  transform: rotate(-35deg);
-}
-
-.highlight-brush-handle {
-  position: absolute;
-  left: 4rpx;
-  top: 11rpx;
-  width: 14rpx;
-  height: 7rpx;
-  border: 3rpx solid #000;
-  border-radius: 7rpx;
-  background: #fff;
-}
-
-.highlight-brush-ferrule {
-  position: absolute;
-  left: 18rpx;
-  top: 10rpx;
-  width: 6rpx;
-  height: 9rpx;
-  border: 3rpx solid #000;
-  border-left: none;
-  border-radius: 0 3rpx 3rpx 0;
-  background: #fff;
-}
-
-.highlight-brush-head {
-  position: absolute;
-  left: 24rpx;
-  top: 9rpx;
-  width: 0;
-  height: 0;
-  border-top: 6rpx solid transparent;
-  border-bottom: 6rpx solid transparent;
-  border-left: 8rpx solid #000;
+.toolbar-btn.highlight:active {
+  transform: translate(1rpx, 1rpx);
+  box-shadow: 1rpx 1rpx 0 #000;
 }
 
 
