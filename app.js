@@ -14,6 +14,7 @@ App({
     // 全局状态存储
     editorData: {
       text: '',
+      richTextHtml: '',
       fontSize: 32,
       fontColor: '#ffffff',
       textAlign: 'center',
@@ -22,10 +23,16 @@ App({
       shadowEnabled: false,
       currentRatio: '3:4',
       bgStyle: 'gradient',
+      activeTab: 'gradient',
       bgIndex: 0,
       bgColor: '#667eea',
       bgImage: '',
-      fontIndex: 0
+      textureIndex: 0,
+      fontIndex: 0,
+      enableMarkdown: true,
+      enableFooter: false,
+      footerAuthor: '',
+      footerDate: ''
     }
   }
 });

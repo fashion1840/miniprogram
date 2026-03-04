@@ -202,18 +202,192 @@
 }
 
 /* 文字输入框 */
-.textarea-wrapper {
-  background-color: #f8fafc;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  border: 2rpx solid #e2e8f0;
-  transition: all 0.3s ease;
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
 }
 
-.textarea-wrapper:focus-within {
-  border-color: #4facfe;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.icon-box {
+  width: 56rpx;
+  height: 56rpx;
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 700;
+  border-radius: 12rpx;
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #000;
+}
+
+.markdown-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: #fff;
+  border: 3rpx solid #000;
+  border-radius: 12rpx;
+  padding: 8rpx 12rpx;
+  box-shadow: 3rpx 3rpx 0 #000;
+}
+
+.toolbar-btn {
+  width: 60rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #000;
+  border-radius: 8rpx;
+  transition: all 0.15s ease;
+  letter-spacing: 2rpx;
+}
+
+.toolbar-btn:active {
+  background: #f0f0f0;
+}
+
+.toolbar-btn.bold {
+  font-weight: 900;
+}
+
+.toolbar-btn.italic {
+  font-style: italic;
+  font-family: Georgia, serif;
+  transform: skewX(-8deg);
+}
+
+.toolbar-btn.underline {
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
+}
+
+.toolbar-btn.link {
+  font-size: 24rpx;
+}
+
+.toolbar-btn.highlight {
+  position: relative;
+}
+
+.highlight-icon {
+  position: relative;
+  width: 30rpx;
+  height: 30rpx;
+  transform: rotate(-35deg);
+}
+
+.highlight-brush-handle {
+  position: absolute;
+  left: 4rpx;
+  top: 11rpx;
+  width: 14rpx;
+  height: 7rpx;
+  border: 3rpx solid #000;
+  border-radius: 7rpx;
+  background: #fff;
+}
+
+.highlight-brush-ferrule {
+  position: absolute;
+  left: 18rpx;
+  top: 10rpx;
+  width: 6rpx;
+  height: 9rpx;
+  border: 3rpx solid #000;
+  border-left: none;
+  border-radius: 0 3rpx 3rpx 0;
+  background: #fff;
+}
+
+.highlight-brush-head {
+  position: absolute;
+  left: 24rpx;
+  top: 9rpx;
+  width: 0;
+  height: 0;
+  border-top: 6rpx solid transparent;
+  border-bottom: 6rpx solid transparent;
+  border-left: 8rpx solid #000;
+}
+
+
+
+
+.textarea-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16rpx;
+}
+
+.markdown-hint {
+  font-size: 24rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.char-count {
+  font-size: 24rpx;
+  color: #000;
+  font-weight: 600;
+}
+
+.text-btn {
+  padding: 10rpx 28rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  border: 3rpx solid #000;
+  border-radius: 8rpx;
+  box-shadow: 3rpx 3rpx 0 #000;
+  transition: all 0.1s ease;
+}
+
+.text-btn.reset {
+  background: #fff;
+  color: #000;
+}
+
+.text-btn.clear {
+  background: #000;
+  color: #fff;
+}
+
+.text-btn:active {
+  transform: translate(3rpx, 3rpx);
+  box-shadow: 0 0 0 #000;
+}
+
+.textarea-wrapper {
   background-color: #fff;
-  box-shadow: 0 0 0 4rpx rgba(79, 172, 254, 0.1);
+  border-radius: 0;
+  padding: 24rpx;
+  border: 3rpx solid #000;
+  box-shadow: 4rpx 4rpx 0 #000;
 }
 
 .main-textarea {
@@ -221,7 +395,8 @@
   height: 240rpx;
   font-size: 32rpx;
   line-height: 1.6;
-  color: #1e293b;
+  color: #000;
+  font-weight: 500;
 }
 
 /* 选项网格 (比例选择) */
@@ -852,14 +1027,48 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 30rpx;
-  color: #334155;
+  font-size: 28rpx;
+  color: #000;
+  margin-bottom: 20rpx;
+  font-weight: 700;
+}
+
+.setting-item:last-child {
+  margin-bottom: 0;
 }
 
 .setting-item.column {
   flex-direction: column;
   align-items: stretch;
   gap: 0;
+}
+
+.footer-settings {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  background: #fff;
+  border-radius: 0;
+  border: 3rpx solid #000;
+  box-shadow: 4rpx 4rpx 0 #000;
+}
+
+.setting-label {
+  font-size: 24rpx;
+  color: #000;
+  margin-bottom: 12rpx;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.footer-input {
+  height: 70rpx;
+  padding: 0 16rpx;
+  background: #fff;
+  border: 3rpx solid #000;
+  border-radius: 0;
+  font-size: 26rpx;
+  color: #000;
+  font-weight: 600;
 }
 
 .label-row {

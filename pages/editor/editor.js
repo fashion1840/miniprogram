@@ -5,9 +5,15 @@ const { gradients, solidColors, textures, fontColors, fonts } = require('../../c
 
 // Canvas 默认尺寸常量
 const CANVAS_WIDTH = 900;
+const REALTIME_RENDER_INTERVAL = 50;
 
 let canvasInstance = null;
+let editorCtx = null;
 let renderTimer = null;
+let realtimeRenderTimer = null;
+let lastRealtimeRenderAt = 0;
+let showGuideTimer = null;
+let renderVersion = 0;
 
 // 根据比例计算高度（用于保存，宽度 900）
 function getHeightByRatio(ratio, width = 900) {
@@ -20,10 +26,32 @@ function getHeightByRatio(ratio, width = 900) {
   }
 }
 
+function escapeHtml(text = '') {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function plainTextToEditorHtml(text = '') {
+  if (!text) return '';
+  return text
+    .split('\n')
+    .map(line => `<p>${escapeHtml(line) || '<br>'}</p>`)
+    .join('');
+}
+
+function normalizeEditorPlainText(text = '') {
+  return String(text || '').replace(/\r/g, '');
+}
+
 Page({
   data: {
     // 文字
     text: '',
+    richTextHtml: '',
     charCount: 0,
     
     // 图片比例
@@ -68,13 +96,22 @@ Page({
     isGenerating: false,
     
     // 空状态引导显示
-    showEmptyGuide: false
+    showEmptyGuide: false,
+    
+    // Markdown 支持
+    enableMarkdown: true,
+    
+    // 页脚信息
+    enableFooter: false,
+    footerAuthor: '',
+    footerDate: ''
   },
 
   onLoad() {
     // 延迟显示空状态引导，避免初始闪烁
-    setTimeout(() => {
+    showGuideTimer = setTimeout(() => {
       this.setData({ showEmptyGuide: true });
+      showGuideTimer = null;
     }, 500);
     // 统一从本地存储恢复状态
     const hasSavedState = this.restoreState();
@@ -86,6 +123,7 @@ Page({
       this.setData({
         ...editorData,
         activeTab: editorData.activeTab || editorData.bgStyle || 'gradient',
+        richTextHtml: editorData.richTextHtml || plainTextToEditorHtml(editorData.text || ''),
         charCount: editorData.text ? editorData.text.length : 0,
         ratioClass
       });
@@ -113,11 +151,16 @@ Page({
   onUnload() {
     this.saveState();
     // 清理定时器和 Canvas 实例，防止内存泄漏
-    if (renderTimer) {
-      clearTimeout(renderTimer);
-      renderTimer = null;
+    this.clearRenderTimer();
+    this.clearRealtimeRenderTimer();
+    if (showGuideTimer) {
+      clearTimeout(showGuideTimer);
+      showGuideTimer = null;
     }
+    lastRealtimeRenderAt = 0;
+    renderVersion += 1;
     canvasInstance = null;
+    editorCtx = null;
   },
 
   // 清理渲染定时器
@@ -126,6 +169,37 @@ Page({
       clearTimeout(renderTimer);
       renderTimer = null;
     }
+  },
+
+  // 清理实时渲染定时器
+  clearRealtimeRenderTimer() {
+    if (realtimeRenderTimer) {
+      clearTimeout(realtimeRenderTimer);
+      realtimeRenderTimer = null;
+    }
+  },
+
+  // 滑块拖动实时预览（节流）
+  scheduleRealtimeRender() {
+    const now = Date.now();
+    const elapsed = now - lastRealtimeRenderAt;
+
+    if (elapsed >= REALTIME_RENDER_INTERVAL && !realtimeRenderTimer) {
+      lastRealtimeRenderAt = now;
+      this.doRender();
+      return;
+    }
+
+    if (realtimeRenderTimer) {
+      return;
+    }
+
+    const wait = Math.max(REALTIME_RENDER_INTERVAL - elapsed, 0);
+    realtimeRenderTimer = setTimeout(() => {
+      realtimeRenderTimer = null;
+      lastRealtimeRenderAt = Date.now();
+      this.doRender();
+    }, wait);
   },
 
   // 初始化 Canvas
@@ -152,21 +226,24 @@ Page({
   // 渲染预览（带防抖）
   renderPreview() {
     this.clearRenderTimer();
+    this.clearRealtimeRenderTimer();
     renderTimer = setTimeout(() => this.doRender(), 300);
   },
 
   // 执行渲染
   async doRender() {
     if (!canvasInstance || !canvasInstance.isReady()) {
-      return;
+      return false;
     }
-    
+
+    const currentVersion = ++renderVersion;
     const width = CANVAS_WIDTH;
     const ratio = this.data.currentRatio || '3:4';
     const height = getHeightByRatio(ratio, width);
     const d = this.data;
-    
-    // 绘制背景
+    const safeFont = d.fonts[d.fontIndex] || d.fonts[0] || { value: 'sans-serif' };
+
+    // 绘制背景（异步）
     await canvasInstance.drawBackground({
       bgStyle: d.bgStyle,
       bgIndex: d.bgIndex,
@@ -178,27 +255,129 @@ Page({
       width,
       height
     });
-    
+
+    // 如果有更新的渲染任务启动，则终止当前任务，避免旧画面覆盖新画面
+    if (currentVersion !== renderVersion) {
+      return false;
+    }
+
     // 绘制文字
     canvasInstance.drawText({
       text: d.text,
+      richTextHtml: d.richTextHtml,
       fontSize: d.fontSize,
       fontColor: d.fontColor,
-      fontFamily: d.fonts[d.fontIndex].value,
+      fontFamily: safeFont.value,
       textAlign: d.textAlign,
       lineHeight: d.lineHeight,
       padding: d.padding,
       shadowEnabled: d.shadowEnabled,
       width,
-      height
+      height,
+      enableMarkdown: d.enableMarkdown,
+      highlightColor: '#ffe66d'
     });
+
+    if (currentVersion !== renderVersion) {
+      return false;
+    }
+
+    // 绘制页脚
+    if (d.enableFooter && (d.footerAuthor || d.footerDate)) {
+      canvasInstance.drawFooter({
+        author: d.footerAuthor,
+        date: d.footerDate,
+        fontSize: 24,
+        fontColor: d.fontColor,
+        fontFamily: safeFont.value,
+        width,
+        height,
+        padding: d.padding
+      });
+    }
+
+    return true;
   },
     
   // 事件处理
-  onTextInput(e) {
-    const text = e.detail.value;
-    this.setData({ text, charCount: text.length });
+  onEditorReady() {
+    const query = wx.createSelectorQuery();
+    query.select('#mainEditor').context((res) => {
+      if (!res || !res.context) return;
+      editorCtx = res.context;
+      const html = this.data.richTextHtml || plainTextToEditorHtml(this.data.text || '');
+      if (html) {
+        editorCtx.setContents({
+          html,
+          success: () => {
+            this.syncEditorContents({ render: false, save: false });
+          }
+        });
+      }
+    }).exec();
+  },
+
+  onEditorInput(e) {
+    const html = (e.detail && e.detail.html) || '';
+    const plain = normalizeEditorPlainText((e.detail && e.detail.text) || '');
+    this.setData({
+      text: plain,
+      richTextHtml: html,
+      charCount: plain.length
+    });
     this.renderPreview();
+  },
+
+  syncEditorContents({ render = true, save = true } = {}) {
+    if (!editorCtx) return;
+    editorCtx.getContents({
+      success: (res) => {
+        const html = (res && res.html) || '';
+        const text = normalizeEditorPlainText((res && res.text) || '');
+        this.setData({
+          text,
+          richTextHtml: html,
+          charCount: text.length
+        }, () => {
+          if (render) this.renderPreview();
+          if (save) this.saveState();
+        });
+      }
+    });
+  },
+
+  applyEditorFormat(name, value = true) {
+    if (!editorCtx) {
+      wx.showToast({ title: '编辑器未就绪', icon: 'none' });
+      return;
+    }
+    editorCtx.format(name, value);
+    setTimeout(() => this.syncEditorContents({ render: true, save: true }), 0);
+  },
+
+  // Markdown 工具栏 - 选区加粗
+  insertBold() {
+    this.applyEditorFormat('bold', true);
+  },
+
+  // Markdown 工具栏 - 选区斜体
+  insertItalic() {
+    this.applyEditorFormat('italic', true);
+  },
+
+  // Markdown 工具栏 - 选区下划线
+  insertUnderline() {
+    this.applyEditorFormat('underline', true);
+  },
+
+  // Markdown 工具栏 - 选区高亮
+  insertHighlight() {
+    this.applyEditorFormat('backgroundColor', '#ffe66d');
+  },
+
+  // Markdown 工具栏 - 插入链接
+  insertLink() {
+    wx.showToast({ title: '暂不支持链接格式', icon: 'none' });
   },
 
   // 加载示例文案
@@ -211,19 +390,29 @@ Page({
       '星光不问赶路人，时光不负有心人'
     ];
     const randomText = demoTexts[Math.floor(Math.random() * demoTexts.length)];
+    const richTextHtml = plainTextToEditorHtml(randomText);
     this.setData({ 
-      text: randomText, 
+      text: randomText,
+      richTextHtml,
       charCount: randomText.length,
       showEmptyGuide: false 
+    }, () => {
+      if (editorCtx) {
+        editorCtx.setContents({ html: richTextHtml });
+      }
+      this.renderPreview();
+      this.saveState();
     });
-    this.renderPreview();
-    this.saveState();
   },
 
   onClearText() {
-    this.setData({ text: '', charCount: 0 });
-    this.renderPreview();
-    this.saveState();
+    this.setData({ text: '', richTextHtml: '', charCount: 0 }, () => {
+      if (editorCtx) {
+        editorCtx.clear();
+      }
+      this.renderPreview();
+      this.saveState();
+    });
   },
 
   // 一键重置所有样式
@@ -236,6 +425,7 @@ Page({
         if (res.confirm) {
           const defaultData = {
             text: '',
+            richTextHtml: '',
             charCount: 0,
             currentRatio: '3:4',
             ratioClass: 'ratio-3-4',
@@ -251,12 +441,20 @@ Page({
             textAlign: 'center',
             lineHeight: 1.5,
             padding: 40,
-            shadowEnabled: false
+            shadowEnabled: false,
+            enableMarkdown: true,
+            enableFooter: false,
+            footerAuthor: '',
+            footerDate: ''
           };
-          this.setData(defaultData);
-          this.initCanvas();
-          this.saveState();
-          wx.showToast({ title: '已重置', icon: 'success' });
+          this.setData(defaultData, () => {
+            if (editorCtx) {
+              editorCtx.clear();
+            }
+            this.initCanvas();
+            this.saveState();
+            wx.showToast({ title: '已重置', icon: 'success' });
+          });
         }
       }
     });
@@ -311,43 +509,46 @@ Page({
   },
 
   onUploadBackground() {
-    const that = this;
     // 使用 wx.chooseMedia 选择图片
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: function(res) {
+      success: (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath;
         wx.showLoading({ title: '正在处理图片...' });
-        
+
         // 验证图片路径是否有效
         wx.getImageInfo({
           src: tempFilePath,
-          success: (imageInfo) => {
-            that.setData({
+          success: () => {
+            this.setData({
               bgImage: tempFilePath,
               bgStyle: 'custom',
               activeTab: 'custom'
             }, () => {
-              that.saveState();
-              setTimeout(() => {
-                that.doRender().then(() => {
-                  wx.hideLoading();
-                }).catch(err => {
-                  wx.hideLoading();
+              this.saveState();
+              this.doRender()
+                .then((rendered) => {
+                  if (!rendered) {
+                    this.renderPreview();
+                  }
+                })
+                .catch(() => {
                   wx.showToast({ title: '图片渲染失败', icon: 'none' });
+                })
+                .finally(() => {
+                  wx.hideLoading();
                 });
-              }, 100);
             });
           },
-          fail: (err) => {
+          fail: () => {
             wx.hideLoading();
             wx.showToast({ title: '图片加载失败', icon: 'none' });
           }
         });
       },
-      fail: function(err) {
+      fail: (err) => {
         if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
           wx.showToast({ title: '选择图片失败', icon: 'none' });
         }
@@ -356,7 +557,10 @@ Page({
   },
 
   onFontChange(e) {
-    this.setData({ fontIndex: e.detail.value });
+    const idx = Number(e.detail.value);
+    const maxIndex = this.data.fonts.length - 1;
+    const fontIndex = Number.isFinite(idx) ? Math.max(0, Math.min(idx, maxIndex)) : 0;
+    this.setData({ fontIndex });
     this.renderPreview();
   },
 
@@ -368,30 +572,33 @@ Page({
   // 字号 - 拖动时实时预览
   onFontSizeChanging(e) {
     this.setData({ fontSize: e.detail.value });
-    this.doRender();
+    this.scheduleRealtimeRender();
   },
   onFontSizeChange(e) {
     this.setData({ fontSize: e.detail.value });
+    this.scheduleRealtimeRender();
     this.saveState();
   },
 
   // 行高 - 拖动时实时预览
   onLineHeightChanging(e) {
     this.setData({ lineHeight: e.detail.value });
-    this.doRender();
+    this.scheduleRealtimeRender();
   },
   onLineHeightChange(e) {
     this.setData({ lineHeight: e.detail.value });
+    this.scheduleRealtimeRender();
     this.saveState();
   },
 
   // 页边距 - 拖动时实时预览
   onPaddingChanging(e) {
     this.setData({ padding: e.detail.value });
-    this.doRender();
+    this.scheduleRealtimeRender();
   },
   onPaddingChange(e) {
     this.setData({ padding: e.detail.value });
+    this.scheduleRealtimeRender();
     this.saveState();
   },
 
@@ -405,10 +612,45 @@ Page({
     this.renderPreview();
   },
 
+  // Markdown 开关
+  onMarkdownToggle(e) {
+    this.setData({ enableMarkdown: e.detail.value });
+    this.renderPreview();
+    this.saveState();
+  },
+
+  // 页脚开关
+  onFooterToggle(e) {
+    const enableFooter = e.detail.value;
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    this.setData({ 
+      enableFooter,
+      footerDate: dateStr
+    });
+    this.renderPreview();
+    this.saveState();
+  },
+
+  // 页脚作者输入
+  onFooterAuthorInput(e) {
+    this.setData({ footerAuthor: e.detail.value });
+    this.renderPreview();
+    this.saveState();
+  },
+
+  // 页脚日期输入
+  onFooterDateInput(e) {
+    this.setData({ footerDate: e.detail.value });
+    this.renderPreview();
+    this.saveState();
+  },
+
   // 保存状态
   saveState() {
-    const keys = ['text', 'currentRatio', 'bgStyle', 'activeTab', 'bgIndex', 'bgColor', 'bgImage',
-                  'textureIndex', 'fontIndex', 'fontSize', 'fontColor', 'textAlign', 'lineHeight', 'padding', 'shadowEnabled'];
+    const keys = ['text', 'richTextHtml', 'currentRatio', 'bgStyle', 'activeTab', 'bgIndex', 'bgColor', 'bgImage',
+                  'textureIndex', 'fontIndex', 'fontSize', 'fontColor', 'textAlign', 'lineHeight', 'padding', 'shadowEnabled',
+                  'enableMarkdown', 'enableFooter', 'footerAuthor', 'footerDate'];
     const editorData = {};
     keys.forEach(key => editorData[key] = this.data[key]);
     app.globalData.editorData = editorData;
@@ -436,11 +678,14 @@ Page({
 
   // 下载图片 - 直接下载当前预览
   onDownload() {
+    if (this.data.isGenerating) {
+      return;
+    }
     if (!this.data.text.trim()) {
       wx.showToast({ title: '请输入文字', icon: 'none' });
       return;
     }
-    
+
     this.setData({ isGenerating: true });
     this.saveState();
     

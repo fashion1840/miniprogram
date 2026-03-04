@@ -18,28 +18,39 @@
         <!-- 文字输入 -->
         <view class="card">
           <view class="card-header">
-            <text class="card-title">文字内容</text>
-            <view class="header-actions">
-              <text class="card-subtitle">{{charCount}} 字</text>
-              <view class="action-btns">
-                <view class="reset-btn" bindtap="onResetAll">
-                  <text class="reset-text">重置</text>
-                </view>
-                <view wx:if="{{text.length > 0}}" class="clear-btn" bindtap="onClearText">
-                  <text class="clear-icon">×</text>
+            <view class="header-left">
+              <view class="icon-box">T</view>
+              <text class="card-title">文字内容</text>
+            </view>
+            <view class="markdown-toolbar">
+              <view class="toolbar-btn bold" catchtap="insertBold">B</view>
+              <view class="toolbar-btn italic" catchtap="insertItalic">I</view>
+              <view class="toolbar-btn underline" catchtap="insertUnderline">U</view>
+              <view class="toolbar-btn highlight" catchtap="insertHighlight">
+                <view class="highlight-icon" aria-hidden="true">
+                  <view class="highlight-brush-handle"></view>
+                  <view class="highlight-brush-ferrule"></view>
+                  <view class="highlight-brush-head"></view>
                 </view>
               </view>
             </view>
           </view>
           <view class="textarea-wrapper">
-            <textarea 
-              class="main-textarea" 
-              placeholder="想说的话，都在这里..." 
-              maxlength="-1"
-              value="{{text}}"
-              bindinput="onTextInput"
-              cursor-spacing="100"
-            ></textarea>
+            <editor
+              id="mainEditor"
+              class="main-textarea"
+              placeholder="想说的话，都在这里..."
+              bindready="onEditorReady"
+              bindinput="onEditorInput"
+            ></editor>
+          </view>
+          <view class="textarea-footer">
+            <text class="markdown-hint">支持 Markdown 格式</text>
+            <view class="footer-actions">
+              <text class="char-count">{{charCount}} 字</text>
+              <view class="text-btn reset" bindtap="onResetAll">重置</view>
+              <view wx:if="{{text.length > 0}}" class="text-btn clear" bindtap="onClearText">清空</view>
+            </view>
           </view>
         </view>
 
@@ -159,7 +170,7 @@
             <view class="setting-item">
               <text>字体</text>
               <picker mode="selector" range="{{fonts}}" range-key="name" bindchange="onFontChange">
-                <view class="picker-box">{{fonts[fontIndex].name}}</view>
+                <view class="picker-box">{{fonts[fontIndex] ? fonts[fontIndex].name : fonts[0].name}}</view>
               </picker>
             </view>
 
@@ -201,7 +212,35 @@
 
             <view class="setting-item">
               <text>文字阴影</text>
-              <switch checked="{{shadowEnabled}}" bindchange="onShadowToggle" color="#4a90e2"/>
+              <switch checked="{{shadowEnabled}}" bindchange="onShadowToggle" color="#ff6b6b"/>
+            </view>
+
+            <view class="setting-item">
+              <text>显示页脚</text>
+              <switch checked="{{enableFooter}}" bindchange="onFooterToggle" color="#ffe66d"/>
+            </view>
+
+            <view wx:if="{{enableFooter}}" class="footer-settings">
+              <view class="setting-item column">
+                <text class="setting-label">作者</text>
+                <input 
+                  class="footer-input" 
+                  placeholder="输入作者名" 
+                  value="{{footerAuthor}}"
+                  bindinput="onFooterAuthorInput"
+                  maxlength="20"
+                />
+              </view>
+              <view class="setting-item column">
+                <text class="setting-label">日期</text>
+                <input 
+                  class="footer-input" 
+                  placeholder="YYYY-MM-DD" 
+                  value="{{footerDate}}"
+                  bindinput="onFooterDateInput"
+                  maxlength="20"
+                />
+              </view>
             </view>
           </view>
         </view>
@@ -232,7 +271,7 @@
 
   <!-- 悬浮下载按钮 -->
   <view class="action-bar">
-    <button class="primary-btn {{isGenerating ? 'loading' : ''}}" bindtap="onDownload">
+    <button class="primary-btn {{isGenerating ? 'loading' : ''}}" bindtap="onDownload" disabled="{{isGenerating}}">
       <view class="btn-content">
         <text>{{isGenerating ? '保存中...' : '保存图片'}}</text>
       </view>

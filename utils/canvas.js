@@ -112,14 +112,175 @@ class TextToImage {
     }
   }
 
+  decodeHtmlEntities(text = '') {
+    return text
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+
   /**
-   * 绘制文字
+   * 解析 Markdown 文本为样式段落
+   * 支持：**粗体**、*斜体*、__下划线__、==高亮==
+   */
+  parseMarkdown(text) {
+    const segments = [];
+    const checks = [
+      { pattern: /\*\*(.+?)\*\*/, type: 'bold' },
+      { pattern: /==(.+?)==/, type: 'highlight' },
+      { pattern: /__(.+?)__/, type: 'underline' },
+      { pattern: /\*(.+?)\*/, type: 'italic' }
+    ];
+    const paragraphs = text.split('\n');
+
+    paragraphs.forEach((paragraph, pIndex) => {
+      let remaining = paragraph;
+
+      while (remaining.length > 0) {
+        let bestCheck = null;
+        let bestMatch = null;
+
+        checks.forEach((check) => {
+          const match = remaining.match(check.pattern);
+          if (!match) return;
+
+          if (!bestMatch || match.index < bestMatch.index) {
+            bestMatch = match;
+            bestCheck = check;
+          }
+        });
+
+        if (!bestMatch || !bestCheck) {
+          segments.push({
+            text: remaining,
+            bold: false,
+            italic: false,
+            underline: false,
+            highlight: false,
+            newline: false
+          });
+          break;
+        }
+
+        const before = remaining.slice(0, bestMatch.index);
+        if (before) {
+          segments.push({
+            text: before,
+            bold: false,
+            italic: false,
+            underline: false,
+            highlight: false,
+            newline: false
+          });
+        }
+
+        segments.push({
+          text: bestMatch[1],
+          bold: bestCheck.type === 'bold',
+          italic: bestCheck.type === 'italic',
+          underline: bestCheck.type === 'underline',
+          highlight: bestCheck.type === 'highlight',
+          newline: false
+        });
+
+        remaining = remaining.slice(bestMatch.index + bestMatch[0].length);
+      }
+
+      if (pIndex < paragraphs.length - 1) {
+        segments.push({ text: '', bold: false, italic: false, underline: false, highlight: false, newline: true });
+      }
+    });
+
+    return segments;
+  }
+
+  /**
+   * 解析 editor 富文本 HTML 为样式段落
+   */
+  parseRichTextHtml(html = '') {
+    if (!html) return [];
+
+    const segments = [];
+    const stack = [{ bold: false, italic: false, underline: false, highlight: false }];
+    const tokens = html.replace(/\r/g, '').match(/<[^>]+>|[^<]+/g) || [];
+
+    const cloneTop = () => ({ ...stack[stack.length - 1] });
+    const pushText = (content) => {
+      const text = this.decodeHtmlEntities(content || '').replace(/\u200b/g, '');
+      if (!text) return;
+      const style = stack[stack.length - 1] || { bold: false, italic: false, underline: false, highlight: false };
+      segments.push({
+        text,
+        bold: !!style.bold,
+        italic: !!style.italic,
+        underline: !!style.underline,
+        highlight: !!style.highlight,
+        newline: false
+      });
+    };
+
+    tokens.forEach((token) => {
+      if (token[0] !== '<') {
+        pushText(token);
+        return;
+      }
+
+      const tag = token.toLowerCase();
+      const isClosing = /^<\//.test(tag);
+      const nameMatch = tag.match(/^<\/?\s*([a-z0-9]+)/);
+      const tagName = nameMatch ? nameMatch[1] : '';
+
+      if (tagName === 'br') {
+        segments.push({ text: '', bold: false, italic: false, underline: false, highlight: false, newline: true });
+        return;
+      }
+
+      if (isClosing && (tagName === 'p' || tagName === 'div')) {
+        segments.push({ text: '', bold: false, italic: false, underline: false, highlight: false, newline: true });
+      }
+
+      if (isClosing) {
+        if (stack.length > 1) stack.pop();
+        return;
+      }
+
+      const next = cloneTop();
+      if (tagName === 'strong' || tagName === 'b') next.bold = true;
+      if (tagName === 'em' || tagName === 'i') next.italic = true;
+      if (tagName === 'u' || tagName === 'ins') next.underline = true;
+      if (tagName === 'mark') next.highlight = true;
+
+      if (/font-weight\s*:\s*(bold|[5-9]00)/.test(tag)) next.bold = true;
+      if (/font-style\s*:\s*italic/.test(tag)) next.italic = true;
+      if (/text-decoration\s*:[^;]*(underline)/.test(tag)) next.underline = true;
+      if (/background(-color)?\s*:/.test(tag) || /data-background-color\s*=/.test(tag)) {
+        if (!/background(-color)?\s*:\s*(transparent|initial|inherit|unset)/.test(tag)) {
+          next.highlight = true;
+        }
+      }
+
+      stack.push(next);
+    });
+
+    while (segments.length > 0 && segments[segments.length - 1].newline) {
+      segments.pop();
+    }
+
+    return segments;
+  }
+
+  /**
+   * 绘制文字（支持 Markdown）
    * @param {Object} options - 文字选项
    */
   drawText(options) {
     if (!this.isReady()) return;
     const {
       text = '',
+      richTextHtml = '',
       fontSize = 32,
       fontColor = '#ffffff',
       fontFamily = 'sans-serif',
@@ -128,15 +289,13 @@ class TextToImage {
       padding = 40,
       shadowEnabled = false,
       width,
-      height
+      height,
+      enableMarkdown = true,
+      highlightColor = '#ffe66d'
     } = options;
 
     const ctx = this.ctx;
-    ctx.font = `${fontSize}px ${fontFamily}`;
-    ctx.fillStyle = fontColor;
-    ctx.textAlign = textAlign;
-    ctx.textBaseline = 'top';
-
+    
     if (shadowEnabled) {
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 8;
@@ -150,7 +309,6 @@ class TextToImage {
     }
 
     const maxWidth = width - padding * 2;
-    const lines = this.wrapText(text || '', maxWidth);
     const lineHeightPx = fontSize * lineHeight;
 
     let startX;
@@ -161,9 +319,19 @@ class TextToImage {
       default: startX = width / 2;
     }
 
-    // 如果没有文字，显示提示文字（仅在预览时）
-    const isEmpty = lines.length === 0 || (lines.length === 1 && lines[0] === '');
-    if (isEmpty) {
+    // 解析格式文本（优先 rich text，回退 markdown）
+    let segments;
+    if (!enableMarkdown) {
+      segments = [{ text, bold: false, italic: false, underline: false, highlight: false, newline: false }];
+    } else {
+      const richSegments = this.parseRichTextHtml(richTextHtml);
+      segments = richSegments.length > 0 ? richSegments : this.parseMarkdown(text);
+    }
+
+    const hasRenderableText = segments.some(seg => !seg.newline && seg.text && seg.text.trim() !== '');
+
+    // 如果没有文字，显示提示文字
+    if (!hasRenderableText) {
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.font = `${fontSize * 0.8}px ${fontFamily}`;
@@ -173,13 +341,134 @@ class TextToImage {
       const hintY = height / 2 - fontSize * 0.4;
       ctx.fillText(hintText, hintX, hintY);
       ctx.restore();
-    } else {
-      const textBlockHeight = lines.length * lineHeightPx;
-      const startY = (height - textBlockHeight) / 2;
-      lines.forEach((line, i) => {
-        ctx.fillText(line, startX, startY + i * lineHeightPx);
-      });
+      return;
     }
+    
+    // 将段落分行
+    const lines = this.wrapMarkdownLines(segments, maxWidth, fontSize, fontFamily);
+    
+    // 计算起始 Y 坐标（垂直居中）
+    const textBlockHeight = lines.length * lineHeightPx;
+    const startY = (height - textBlockHeight) / 2;
+
+    // 绘制每一行
+    ctx.textBaseline = 'top';
+    lines.forEach((line, lineIndex) => {
+      const y = startY + lineIndex * lineHeightPx;
+      
+      // 计算整行宽度以确定起始 X
+      let lineWidth = 0;
+      line.forEach(seg => {
+        ctx.font = `${seg.bold ? 'bold' : 'normal'} ${fontSize}px ${fontFamily}`;
+        lineWidth += ctx.measureText(seg.text).width;
+      });
+      
+      let x = startX;
+      if (textAlign === 'center') {
+        x = startX - lineWidth / 2;
+      } else if (textAlign === 'right') {
+        x = startX - lineWidth;
+      }
+      
+      // 绘制每个片段
+      line.forEach(seg => {
+        const fontStyle = seg.italic ? 'italic' : 'normal';
+        const fontWeight = seg.bold ? 'bold' : 'normal';
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        
+        // 高亮背景
+        if (seg.highlight) {
+          const textWidth = ctx.measureText(seg.text).width;
+          ctx.save();
+          ctx.fillStyle = highlightColor;
+          ctx.fillRect(x - 4, y - 2, textWidth + 8, fontSize + 4);
+          ctx.restore();
+        }
+        
+        ctx.fillStyle = fontColor;
+        ctx.fillText(seg.text, x, y);
+        
+        // 下划线
+        if (seg.underline) {
+          const textWidth = ctx.measureText(seg.text).width;
+          ctx.save();
+          ctx.strokeStyle = fontColor;
+          ctx.lineWidth = Math.max(2, fontSize / 12);
+          ctx.beginPath();
+          ctx.moveTo(x, y + fontSize);
+          ctx.lineTo(x + textWidth, y + fontSize);
+          ctx.stroke();
+          ctx.restore();
+        }
+        
+        x += ctx.measureText(seg.text).width;
+      });
+    });
+  }
+
+  /**
+   * 将 Markdown 段落分行
+   */
+  wrapMarkdownLines(segments, maxWidth, fontSize, fontFamily) {
+    const lines = [];
+    let currentLine = [];
+    let currentLineWidth = 0;
+    
+    const ctx = this.ctx;
+    
+    segments.forEach(seg => {
+      const text = seg.text;
+      if (!text) {
+        // 换行标记
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
+          currentLine = [];
+          currentLineWidth = 0;
+        }
+        return;
+      }
+      
+      const chars = text.split('');
+      let currentText = '';
+      
+      for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
+        const testText = currentText + char;
+        const fontStyle = seg.italic ? 'italic' : 'normal';
+        const fontWeight = seg.bold ? 'bold' : 'normal';
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        const testWidth = ctx.measureText(testText).width;
+        
+        if (testWidth > maxWidth - currentLineWidth && currentText.length > 0) {
+          // 当前片段需要换行
+          if (currentText) {
+            currentLine.push({ ...seg, text: currentText });
+          }
+          lines.push(currentLine);
+          currentLine = [];
+          currentLineWidth = 0;
+          currentText = char;
+        } else {
+          currentText = testText;
+        }
+      }
+      
+      // 添加剩余文本到当前行
+      if (currentText) {
+        currentLine.push({ ...seg, text: currentText });
+        const fontStyle = seg.italic ? 'italic' : 'normal';
+        const fontWeight = seg.bold ? 'bold' : 'normal';
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        currentLineWidth += ctx.measureText(currentText).width;
+      }
+    });
+    
+    // 添加最后一行
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+    }
+    
+    return lines;
   }
 
   /**
@@ -507,6 +796,53 @@ class TextToImage {
     }
     ctx.closePath();
     ctx.stroke();
+  }
+
+  /**
+   * 绘制页脚
+   * @param {Object} options - 页脚选项
+   */
+  drawFooter(options) {
+    if (!this.isReady()) return;
+    const {
+      author = '',
+      date = '',
+      fontSize = 24,
+      fontColor = '#ffffff',
+      fontFamily = 'sans-serif',
+      width,
+      height,
+      padding = 40
+    } = options;
+
+    const ctx = this.ctx;
+    ctx.save();
+    
+    // 页脚位置（底部）
+    const footerY = height - padding - fontSize;
+    const centerX = width / 2;
+    
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.fillStyle = fontColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.globalAlpha = 0.7;
+    
+    // 组合页脚文字
+    let footerText = '';
+    if (author && date) {
+      footerText = `@${author} · ${date}`;
+    } else if (author) {
+      footerText = `@${author}`;
+    } else if (date) {
+      footerText = date;
+    }
+    
+    if (footerText) {
+      ctx.fillText(footerText, centerX, footerY);
+    }
+    
+    ctx.restore();
   }
 
   /**
