@@ -51,7 +51,10 @@
         <!-- 样式控制：比例 & 背景 -->
         <view class="card">
           <view class="card-header">
-            <text class="card-title">画布比例</text>
+            <view class="header-left">
+              <view class="icon-box">▢</view>
+              <text class="card-title">画布比例</text>
+            </view>
           </view>
           <view class="option-grid">
             <view 
@@ -70,7 +73,10 @@
         <!-- 背景设置 -->
         <view class="card">
           <view class="card-header">
-            <text class="card-title">背景设置</text>
+            <view class="header-left">
+              <view class="icon-box">🎨</view>
+              <text class="card-title">背景设置</text>
+            </view>
             <view class="tab-pills">
               <view class="pill {{activeTab === 'gradient' ? 'active' : ''}}" bindtap="onBgStyleChange" data-style="gradient">渐变</view>
               <view class="pill {{activeTab === 'solid' ? 'active' : ''}}" bindtap="onBgStyleChange" data-style="solid">纯色</view>
@@ -148,7 +154,10 @@
         <!-- 字体排版 -->
         <view class="card">
           <view class="card-header">
-            <text class="card-title">文字排版</text>
+            <view class="header-left">
+              <view class="icon-box">T</view>
+              <text class="card-title">文字排版</text>
+            </view>
           </view>
           
           <view class="setting-group">
@@ -242,7 +251,10 @@
         <!-- 字体颜色 -->
         <view class="card">
           <view class="card-header">
-            <text class="card-title">字体颜色</text>
+            <view class="header-left">
+              <view class="icon-box">🎯</view>
+              <text class="card-title">字体颜色</text>
+            </view>
           </view>
           <view class="color-grid">
             <view 
