@@ -1,4 +1,4 @@
-// miniprogram/utils/store.js
+﻿// miniprogram/utils/store.js
 // 全局状态管理
 
 const app = getApp();

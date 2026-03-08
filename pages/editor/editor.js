@@ -3,9 +3,10 @@ const app = getApp();
 const TextToImage = require('../../utils/canvas');
 const { gradients, solidColors, textures, fontColors, fonts } = require('../../config/backgrounds');
 
-// Canvas 默认尺寸常量
 const CANVAS_WIDTH = 900;
 const REALTIME_RENDER_INTERVAL = 50;
+const RECENT_SOLID_COLORS_KEY = 'recentSolidColors';
+const MAX_RECENT_SOLID_COLORS = 8;
 
 let canvasInstance = null;
 let editorCtx = null;
@@ -13,16 +14,17 @@ let renderTimer = null;
 let realtimeRenderTimer = null;
 let lastRealtimeRenderAt = 0;
 let showGuideTimer = null;
+let canvasInitRetryCount = 0;
+let isCanvasInitializing = false;
 let renderVersion = 0;
 
-// 根据比例计算高度（用于保存，宽度 900）
 function getHeightByRatio(ratio, width = 900) {
   switch(ratio) {
     case '3:4': return width * 4 / 3;  // 1200
     case '1:1': return width;            // 900
     case '4:3': return width * 3 / 4;   // 675
     case '9:16': return width * 16 / 9; // 1600
-    default: return width * 4 / 3;      // 默认 3:4
+    default: return width * 4 / 3;
   }
 }
 
@@ -49,12 +51,10 @@ function normalizeEditorPlainText(text = '') {
 
 Page({
   data: {
-    // 文字
     text: '',
     richTextHtml: '',
     charCount: 0,
     
-    // 图片比例
     ratios: [
       { label: '3:4', value: '3:4' },
       { label: '1:1', value: '1:1' },
@@ -64,24 +64,31 @@ Page({
     currentRatio: '3:4',
     ratioClass: 'ratio-3-4',
     
-    // 背景样式
-    bgStyle: 'gradient', // 实际应用的样式：gradient, solid, custom
-    activeTab: 'gradient', // 当前选中的标签卡
+    bgStyle: 'gradient', // 实际应用的样式：gradient、solid、texture、custom
+    activeTab: 'gradient',
     bgIndex: 0,
     bgColor: '#667eea',
     bgImage: '',
     
-    // 渐变背景（从配置文件引入）
     gradients: gradients,
     
-    // 纯色背景（从配置文件引入）
     solidColors: solidColors,
+    recentSolidColors: [],
+    customSolidColor: '',
+    showCustomSolidPicker: false,
+    pickerHue: 220,
+    pickerSat: 0.57,
+    pickerVal: 0.84,
+    pickerBaseColor: '#0055FF',
+    pickerCursorX: 57,
+    pickerCursorY: 16,
+    pickerR: 91,
+    pickerG: 155,
+    pickerB: 213,
     
-    // 纹理背景（从配置文件引入）
     textures: textures,
     textureIndex: 0,
     
-    // 字体（从配置文件引入）
     fonts: fonts,
     fontIndex: 0,
     fontSize: 50,
@@ -92,56 +99,60 @@ Page({
     padding: 40,
     shadowEnabled: false,
     
-    // 生成状态
     isGenerating: false,
     
-    // 空状态引导显示
     showEmptyGuide: false,
     
     // Markdown 支持
     enableMarkdown: true,
     
-    // 页脚信息
     enableFooter: false,
     footerAuthor: '',
-    footerDate: ''
+    footerDate: '',
+            footerPosition: 'center',
   },
 
   onLoad() {
-    // 延迟显示空状态引导，避免初始闪烁
     showGuideTimer = setTimeout(() => {
       this.setData({ showEmptyGuide: true });
       showGuideTimer = null;
     }, 500);
-    // 统一从本地存储恢复状态
     const hasSavedState = this.restoreState();
     
-    // 如果有保存的状态，应用它
     if (hasSavedState && app.globalData.editorData) {
       const editorData = app.globalData.editorData;
       const ratioClass = editorData.currentRatio ? 'ratio-' + editorData.currentRatio.replace(':', '-') : 'ratio-3-4';
-      this.setData({
-        ...editorData,
+      this.setData(Object.assign({}, editorData, {
         activeTab: editorData.activeTab || editorData.bgStyle || 'gradient',
         richTextHtml: editorData.richTextHtml || plainTextToEditorHtml(editorData.text || ''),
         charCount: editorData.text ? editorData.text.length : 0,
-        ratioClass
-      });
+        ratioClass: ratioClass
+      }));
     } else {
-      // 使用默认状态
       this.setData({
         ratioClass: 'ratio-' + this.data.currentRatio.replace(':', '-')
       });
     }
     
-    this.initCanvas();
+    this.loadRecentSolidColors();
+    this.syncPickerFromColor(this.data.bgColor || '#667EEA');
+    if (this.data.bgStyle === 'solid' && this.data.bgColor) {
+      this.addRecentSolidColor(this.data.bgColor);
+      this.setData({ customSolidColor: this.data.bgColor });
+    }
+
   },
 
   async onShow() {
-    // 页面显示时重新渲染 Canvas（处理从预览页返回的情况）
     if (canvasInstance && canvasInstance.isReady()) {
       await this.doRender();
+      return;
     }
+    this.initCanvas();
+  },
+
+  onReady() {
+    this.initCanvas();
   },
 
   onHide() {
@@ -150,7 +161,6 @@ Page({
 
   onUnload() {
     this.saveState();
-    // 清理定时器和 Canvas 实例，防止内存泄漏
     this.clearRenderTimer();
     this.clearRealtimeRenderTimer();
     if (showGuideTimer) {
@@ -159,11 +169,13 @@ Page({
     }
     lastRealtimeRenderAt = 0;
     renderVersion += 1;
+    if (canvasInstance && typeof canvasInstance.clearCustomBackgroundCache === 'function') {
+      canvasInstance.clearCustomBackgroundCache();
+    }
     canvasInstance = null;
     editorCtx = null;
   },
 
-  // 清理渲染定时器
   clearRenderTimer() {
     if (renderTimer) {
       clearTimeout(renderTimer);
@@ -171,7 +183,6 @@ Page({
     }
   },
 
-  // 清理实时渲染定时器
   clearRealtimeRenderTimer() {
     if (realtimeRenderTimer) {
       clearTimeout(realtimeRenderTimer);
@@ -179,7 +190,6 @@ Page({
     }
   },
 
-  // 滑块拖动实时预览（节流）
   scheduleRealtimeRender() {
     const now = Date.now();
     const elapsed = now - lastRealtimeRenderAt;
@@ -202,35 +212,41 @@ Page({
     }, wait);
   },
 
-  // 初始化 Canvas
   async initCanvas() {
+    if (isCanvasInitializing) return;
+    isCanvasInitializing = true;
     try {
       if (!canvasInstance) {
         canvasInstance = new TextToImage();
       }
-      // 每次初始化都要调用 init，因为页面重新加载后 Canvas 节点会变化
       await canvasInstance.init('#previewCanvas');
-    
-    // 根据当前比例计算预览分辨率
-    const width = CANVAS_WIDTH;
-    const ratio = this.data.currentRatio || '3:4';
-    const height = getHeightByRatio(ratio, width);
-    
+
+      const width = CANVAS_WIDTH;
+      const ratio = this.data.currentRatio || '3:4';
+      const height = getHeightByRatio(ratio, width);
+
       canvasInstance.setSize(width, height);
       await this.doRender();
+      canvasInitRetryCount = 0;
     } catch (err) {
+      console.error('initCanvas failed', err);
+      if (canvasInitRetryCount < 3) {
+        canvasInitRetryCount += 1;
+        setTimeout(() => this.initCanvas(), 120 * (canvasInitRetryCount + 1));
+        return;
+      }
       wx.showToast({ title: '初始化失败，请重试', icon: 'none' });
+    } finally {
+      isCanvasInitializing = false;
     }
   },
 
-  // 渲染预览（带防抖）
   renderPreview() {
     this.clearRenderTimer();
     this.clearRealtimeRenderTimer();
     renderTimer = setTimeout(() => this.doRender(), 300);
   },
 
-  // 执行渲染
   async doRender() {
     if (!canvasInstance || !canvasInstance.isReady()) {
       return false;
@@ -243,7 +259,6 @@ Page({
     const d = this.data;
     const safeFont = d.fonts[d.fontIndex] || d.fonts[0] || { value: 'sans-serif' };
 
-    // 绘制背景（异步）
     await canvasInstance.drawBackground({
       bgStyle: d.bgStyle,
       bgIndex: d.bgIndex,
@@ -256,12 +271,10 @@ Page({
       height
     });
 
-    // 如果有更新的渲染任务启动，则终止当前任务，避免旧画面覆盖新画面
     if (currentVersion !== renderVersion) {
       return false;
     }
 
-    // 绘制文字
     canvasInstance.drawText({
       text: d.text,
       richTextHtml: d.richTextHtml,
@@ -282,11 +295,11 @@ Page({
       return false;
     }
 
-    // 绘制页脚
     if (d.enableFooter && (d.footerAuthor || d.footerDate)) {
       canvasInstance.drawFooter({
         author: d.footerAuthor,
         date: d.footerDate,
+        position: d.footerPosition,
         fontSize: 24,
         fontColor: d.fontColor,
         fontFamily: safeFont.value,
@@ -299,7 +312,7 @@ Page({
     return true;
   },
     
-  // 事件处理
+  // 浜嬩欢澶勭悊
   onEditorReady() {
     const query = wx.createSelectorQuery();
     query.select('#mainEditor').context((res) => {
@@ -445,11 +458,15 @@ Page({
             enableMarkdown: true,
             enableFooter: false,
             footerAuthor: '',
-            footerDate: ''
+            footerDate: '',
+            footerPosition: 'center',
           };
           this.setData(defaultData, () => {
             if (editorCtx) {
               editorCtx.clear();
+            }
+            if (canvasInstance && typeof canvasInstance.clearCustomBackgroundCache === 'function') {
+              canvasInstance.clearCustomBackgroundCache();
             }
             this.initCanvas();
             this.saveState();
@@ -492,12 +509,262 @@ Page({
     this.renderPreview();
   },
 
-  onSolidColorChange(e) {
-    this.setData({ 
-      bgColor: e.currentTarget.dataset.color,
-      bgStyle: 'solid' // 真正应用纯色样式
+  clampNumber(value, min, max) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return min;
+    return Math.min(max, Math.max(min, n));
+  },
+
+  rgbToHex(r, g, b) {
+    const toHex = (n) => {
+      const v = this.clampNumber(Math.round(n), 0, 255);
+      const s = v.toString(16).toUpperCase();
+      return s.length === 1 ? '0' + s : s;
+    };
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  },
+
+  hexToRgb(hex) {
+    const normalized = this.normalizeSolidColor(hex);
+    if (!normalized) return null;
+    return {
+      r: parseInt(normalized.slice(1, 3), 16),
+      g: parseInt(normalized.slice(3, 5), 16),
+      b: parseInt(normalized.slice(5, 7), 16)
+    };
+  },
+
+  rgbToHsv(r, g, b) {
+    const rn = this.clampNumber(r, 0, 255) / 255;
+    const gn = this.clampNumber(g, 0, 255) / 255;
+    const bn = this.clampNumber(b, 0, 255) / 255;
+    const max = Math.max(rn, gn, bn);
+    const min = Math.min(rn, gn, bn);
+    const delta = max - min;
+
+    let h = 0;
+    if (delta !== 0) {
+      if (max === rn) h = 60 * (((gn - bn) / delta) % 6);
+      else if (max === gn) h = 60 * ((bn - rn) / delta + 2);
+      else h = 60 * ((rn - gn) / delta + 4);
+    }
+    if (h < 0) h += 360;
+
+    const s = max === 0 ? 0 : delta / max;
+    const v = max;
+    return { h, s, v };
+  },
+
+  hsvToRgb(h, s, v) {
+    const hue = ((Number(h) % 360) + 360) % 360;
+    const sat = this.clampNumber(s, 0, 1);
+    const val = this.clampNumber(v, 0, 1);
+    const c = val * sat;
+    const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+    const m = val - c;
+
+    let r1 = 0;
+    let g1 = 0;
+    let b1 = 0;
+    if (hue < 60) { r1 = c; g1 = x; b1 = 0; }
+    else if (hue < 120) { r1 = x; g1 = c; b1 = 0; }
+    else if (hue < 180) { r1 = 0; g1 = c; b1 = x; }
+    else if (hue < 240) { r1 = 0; g1 = x; b1 = c; }
+    else if (hue < 300) { r1 = x; g1 = 0; b1 = c; }
+    else { r1 = c; g1 = 0; b1 = x; }
+
+    return {
+      r: Math.round((r1 + m) * 255),
+      g: Math.round((g1 + m) * 255),
+      b: Math.round((b1 + m) * 255)
+    };
+  },
+
+  syncPickerFromColor(color) {
+    const rgb = this.hexToRgb(color);
+    if (!rgb) return;
+    const hsv = this.rgbToHsv(rgb.r, rgb.g, rgb.b);
+    const baseRgb = this.hsvToRgb(hsv.h, 1, 1);
+    this.setData({
+      pickerHue: Math.round(hsv.h),
+      pickerSat: hsv.s,
+      pickerVal: hsv.v,
+      pickerBaseColor: this.rgbToHex(baseRgb.r, baseRgb.g, baseRgb.b),
+      pickerCursorX: Math.round(hsv.s * 100),
+      pickerCursorY: Math.round((1 - hsv.v) * 100),
+      pickerR: rgb.r,
+      pickerG: rgb.g,
+      pickerB: rgb.b
     });
+  },
+
+  onHueChanging(e) {
+    this.onHueChange(e);
+  },
+
+  onHueChange(e) {
+    const hue = this.clampNumber(e.detail.value, 0, 360);
+    const baseRgb = this.hsvToRgb(hue, 1, 1);
+    const rgb = this.hsvToRgb(hue, this.data.pickerSat, this.data.pickerVal);
+    const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+    this.setData({
+      pickerHue: Math.round(hue),
+      pickerBaseColor: this.rgbToHex(baseRgb.r, baseRgb.g, baseRgb.b),
+      pickerR: rgb.r,
+      pickerG: rgb.g,
+      pickerB: rgb.b,
+      customSolidColor: hex
+    });
+  },
+
+  onSVTouchStart(e) {
+    this.updateSVByTouch(e);
+  },
+
+  onSVTouchMove(e) {
+    this.updateSVByTouch(e);
+  },
+
+  updateSVByTouch(e) {
+    const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+    if (!touch) return;
+    const query = wx.createSelectorQuery();
+    query.select('#solidSVPanel').boundingClientRect((rect) => {
+      if (!rect) return;
+      const x = this.clampNumber((touch.clientX - rect.left) / rect.width, 0, 1);
+      const y = this.clampNumber((touch.clientY - rect.top) / rect.height, 0, 1);
+      const sat = x;
+      const val = 1 - y;
+      const rgb = this.hsvToRgb(this.data.pickerHue, sat, val);
+      const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
+      this.setData({
+        pickerSat: sat,
+        pickerVal: val,
+        pickerCursorX: Math.round(sat * 100),
+        pickerCursorY: Math.round(y * 100),
+        pickerR: rgb.r,
+        pickerG: rgb.g,
+        pickerB: rgb.b,
+        customSolidColor: hex
+      });
+    }).exec();
+  },
+
+  onRgbInput(e) {
+    const channel = e.currentTarget.dataset.channel;
+    const value = this.clampNumber(e.detail.value, 0, 255);
+    const next = {
+      r: this.data.pickerR,
+      g: this.data.pickerG,
+      b: this.data.pickerB
+    };
+    next[channel] = Math.round(value);
+    const hsv = this.rgbToHsv(next.r, next.g, next.b);
+    const baseRgb = this.hsvToRgb(hsv.h, 1, 1);
+    const hex = this.rgbToHex(next.r, next.g, next.b);
+    this.setData({
+      pickerHue: Math.round(hsv.h),
+      pickerSat: hsv.s,
+      pickerVal: hsv.v,
+      pickerBaseColor: this.rgbToHex(baseRgb.r, baseRgb.g, baseRgb.b),
+      pickerCursorX: Math.round(hsv.s * 100),
+      pickerCursorY: Math.round((1 - hsv.v) * 100),
+      pickerR: next.r,
+      pickerG: next.g,
+      pickerB: next.b,
+      customSolidColor: hex
+    });
+  },
+
+  onSolidColorChange(e) {
+    this.applySolidColor(e.currentTarget.dataset.color);
+  },
+
+  onCustomSolidColorInput(e) {
+    this.setData({ customSolidColor: e.detail.value });
+  },
+
+
+  onCustomPickerToggle(e) {
+    this.setData({ showCustomSolidPicker: !!e.detail.value });
+    this.saveState();
+  },
+  onApplyCustomSolidColor() {
+    const ok = this.applySolidColor(this.data.customSolidColor);
+    if (!ok) {
+      wx.showToast({ title: '颜色格式无效', icon: 'none' });
+    }
+  },
+
+  normalizeSolidColor(color = '') {
+    const raw = String(color || '').trim().toUpperCase();
+    const normalized = raw.startsWith('#') ? raw : '#' + raw;
+    if (/^#[0-9A-F]{3}$/.test(normalized)) {
+      const c = normalized.slice(1);
+      return '#' + c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+    }
+    if (/^#[0-9A-F]{6}$/.test(normalized)) {
+      return normalized;
+    }
+    return '';
+  },
+
+  loadRecentSolidColors() {
+    try {
+      const list = wx.getStorageSync(RECENT_SOLID_COLORS_KEY);
+      if (!Array.isArray(list)) {
+        this.setData({ recentSolidColors: [] });
+        return;
+      }
+      const normalized = list
+        .map(color => this.normalizeSolidColor(color))
+        .filter(Boolean)
+        .filter((color, idx, arr) => arr.indexOf(color) === idx)
+        .slice(0, MAX_RECENT_SOLID_COLORS);
+      this.setData({ recentSolidColors: normalized });
+    } catch (e) {
+      this.setData({ recentSolidColors: [] });
+    }
+  },
+
+  addRecentSolidColor(color) {
+    const normalized = this.normalizeSolidColor(color);
+    if (!normalized) return;
+    const current = this.data.recentSolidColors || [];
+    const next = [normalized];
+    current.forEach((item) => {
+      if (item !== normalized && next.length < MAX_RECENT_SOLID_COLORS) {
+        next.push(item);
+      }
+    });
+    this.setData({ recentSolidColors: next });
+    try {
+      wx.setStorageSync(RECENT_SOLID_COLORS_KEY, next);
+    } catch (e) {}
+  },
+
+  applySolidColor(color) {
+    const normalized = this.normalizeSolidColor(color);
+    if (!normalized) return false;
+    const current = this.data.recentSolidColors || [];
+    const nextRecent = [normalized];
+    current.forEach((item) => {
+      if (item !== normalized && nextRecent.length < MAX_RECENT_SOLID_COLORS) {
+        nextRecent.push(item);
+      }
+    });
+    this.setData({
+      bgColor: normalized,
+      bgStyle: 'solid',
+      customSolidColor: normalized,
+      recentSolidColors: nextRecent
+    });
+    this.syncPickerFromColor(normalized);
+    try {
+      wx.setStorageSync(RECENT_SOLID_COLORS_KEY, nextRecent);
+    } catch (e) {}
     this.renderPreview();
+    return true;
   },
 
   onTextureSelect(e) {
@@ -516,12 +783,18 @@ Page({
       sourceType: ['album', 'camera'],
       success: (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath;
-        wx.showLoading({ title: '正在处理图片...' });
+        wx.showLoading({ title: '处理中...' });
 
-        // 验证图片路径是否有效
-        wx.getImageInfo({
-          src: tempFilePath,
-          success: () => {
+        const preloadPromise = (canvasInstance && canvasInstance.isReady() && typeof canvasInstance.preloadCustomBackground === 'function')
+          ? canvasInstance.preloadCustomBackground(tempFilePath)
+          : Promise.resolve(true);
+
+        preloadPromise
+          .then((ok) => {
+            if (!ok) {
+              wx.showToast({ title: '操作失败', icon: 'none' });
+              return;
+            }
             this.setData({
               bgImage: tempFilePath,
               bgStyle: 'custom',
@@ -535,22 +808,23 @@ Page({
                   }
                 })
                 .catch(() => {
-                  wx.showToast({ title: '图片渲染失败', icon: 'none' });
+                  wx.showToast({ title: '操作失败', icon: 'none' });
                 })
                 .finally(() => {
                   wx.hideLoading();
                 });
             });
-          },
-          fail: () => {
+          })
+          .catch(() => {
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          })
+          .finally(() => {
             wx.hideLoading();
-            wx.showToast({ title: '图片加载失败', icon: 'none' });
-          }
-        });
+          });
       },
       fail: (err) => {
         if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
-          wx.showToast({ title: '选择图片失败', icon: 'none' });
+          wx.showToast({ title: '操作失败', icon: 'none' });
         }
       }
     });
@@ -639,18 +913,23 @@ Page({
     this.saveState();
   },
 
-  // 页脚日期输入
   onFooterDateInput(e) {
     this.setData({ footerDate: e.detail.value });
     this.renderPreview();
     this.saveState();
   },
+  onFooterPositionChange(e) {
+    const position = e.currentTarget.dataset.position;
+    if (!position || ['left', 'center', 'right'].indexOf(position) === -1) return;
+    this.setData({ footerPosition: position });
+    this.renderPreview();
+    this.saveState();
+  },
 
-  // 保存状态
   saveState() {
     const keys = ['text', 'richTextHtml', 'currentRatio', 'bgStyle', 'activeTab', 'bgIndex', 'bgColor', 'bgImage',
                   'textureIndex', 'fontIndex', 'fontSize', 'fontColor', 'textAlign', 'lineHeight', 'padding', 'shadowEnabled',
-                  'enableMarkdown', 'enableFooter', 'footerAuthor', 'footerDate'];
+                  'enableMarkdown', 'enableFooter', 'footerAuthor', 'footerDate', 'footerPosition', 'showCustomSolidPicker'];
     const editorData = {};
     keys.forEach(key => editorData[key] = this.data[key]);
     app.globalData.editorData = editorData;
@@ -667,8 +946,7 @@ Page({
     try {
       const savedData = wx.getStorageSync('editorData');
       if (savedData) {
-        // 合并到 globalData
-        app.globalData.editorData = { ...app.globalData.editorData, ...savedData };
+        app.globalData.editorData = Object.assign({}, app.globalData.editorData || {}, savedData);
         return true;
       }
     } catch (e) {
@@ -676,7 +954,6 @@ Page({
     return false;
   },
 
-  // 下载图片 - 直接下载当前预览
   onDownload() {
     if (this.data.isGenerating) {
       return;
@@ -689,18 +966,15 @@ Page({
     this.setData({ isGenerating: true });
     this.saveState();
     
-    // 直接在当前页面生成并下载
     this.generateAndSave();
   },
   
-  // 生成并保存
   async generateAndSave() {
     if (!canvasInstance) {
       this.setData({ isGenerating: false });
       return;
     }
     
-    // 确保渲染完成（包括异步背景图）
     await this.doRender();
     
     try {
@@ -734,6 +1008,17 @@ Page({
     }
   },
 
-  // 移除不再需要的 doRenderWithContext
   // ...
 });
+
+
+
+
+
+
+
+
+
+
+
+

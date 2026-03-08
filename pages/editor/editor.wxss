@@ -8,7 +8,6 @@
   overflow: hidden;
 }
 
-/* 顶部预览区 - Brutalism */
 .preview-section {
   flex-shrink: 0;
   height: 50vh;
@@ -55,7 +54,6 @@
   pointer-events: none;
 }
 
-/* 空状态引导 - Brutalism */
 .empty-state {
   position: absolute;
   top: 0;
@@ -201,7 +199,6 @@
   line-height: 1;
 }
 
-/* 文字输入框 */
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -477,7 +474,6 @@
   box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
 }
 
-/* 纹理预览 - 与渐变/纯色统一样式 */
 .texture-preview {
   width: 100%;
   height: 100rpx;
@@ -487,7 +483,6 @@
   overflow: hidden;
 }
 
-/* 图片上传 - 3x3 大区域 */
 .custom-upload-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -559,7 +554,6 @@
   object-fit: cover;
 }
 
-/* 自定义图片网格 - 与纹理网格保持一致 */
 .custom-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -630,7 +624,6 @@
   color: #4facfe;
 }
 
-/* 纹理预览图案 - 在 100rpx x 100rpx 区域内展示 */
 .preview-paper {
   width: 100%;
   height: 100%;
@@ -892,7 +885,6 @@
   position: relative;
 }
 
-/* 选中状态的勾选标记 */
 .color-grid-item.active .color-circle::after {
   content: '';
   position: absolute;
@@ -988,7 +980,6 @@
   font-weight: 900;
 }
 
-/* 设置项 */
 .setting-group {
   display: flex;
   flex-direction: column;
@@ -1064,7 +1055,6 @@
   font-size: 28rpx;
 }
 
-/* 底部操作栏 */
 .action-bar {
   padding: 30rpx 40rpx calc(30rpx + env(safe-area-inset-bottom));
   background-color: #fff;
@@ -1100,5 +1090,144 @@
 
 .bottom-safe-area {
   height: 150rpx;
+}
+
+/* Custom solid color picker */
+.solid-section {
+  padding: 16rpx 0;
+}
+
+.solid-section-title {
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.recent-color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 12rpx;
+  padding: 4rpx 0 0;
+  overflow: hidden;
+}
+
+.recent-color-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rpx;
+  border: 3rpx solid #000;
+  background-color: #fff;
+  box-shadow: 4rpx 4rpx 0 #000;
+}
+
+.recent-color-item .color-preview {
+  width: 100%;
+  height: 56rpx;
+  border-radius: 8rpx;
+}
+
+.recent-color-item.active {
+  background-color: #4ecdc4;
+  transform: translate(2rpx, 2rpx);
+  box-shadow: 2rpx 2rpx 0 #000;
+}
+
+.solid-sv-panel {
+  position: relative;
+  width: 100%;
+  height: 280rpx;
+  border: 3rpx solid #000;
+  box-shadow: 4rpx 4rpx 0 #000;
+  overflow: hidden;
+}
+
+.solid-sv-white {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #FFFFFF 0%, rgba(255,255,255,0) 100%);
+}
+
+.solid-sv-black {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #000000 0%, rgba(0,0,0,0) 100%);
+}
+
+.solid-sv-cursor {
+  position: absolute;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  border: 3rpx solid #fff;
+  box-shadow: 0 0 0 2rpx #000;
+  transform: translate(-50%, -50%);
+}
+
+.solid-rgb-row {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.solid-rgb-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.solid-rgb-label {
+  width: 26rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+  color: #000;
+}
+
+.solid-rgb-input {
+  flex: 1;
+  height: 64rpx;
+  border: 3rpx solid #000;
+  background: #fff;
+  padding: 0 10rpx;
+  font-size: 24rpx;
+  color: #000;
+}
+
+.solid-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 12rpx;
+}
+
+.solid-color-input {
+  flex: 1;
+  height: 72rpx;
+  border: 3rpx solid #000;
+  background: #fff;
+  padding: 0 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #000;
+}
+
+.solid-color-apply {
+  min-width: 120rpx;
+  height: 72rpx;
+  padding: 0 20rpx;
+  border: 3rpx solid #000;
+  background: #ffe66d;
+  color: #000;
+  font-size: 26rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 4rpx 4rpx 0 #000;
+}
+
+.solid-color-apply:active {
+  transform: translate(2rpx, 2rpx);
+  box-shadow: 2rpx 2rpx 0 #000;
 }
 

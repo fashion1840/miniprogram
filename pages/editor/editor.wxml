@@ -98,17 +98,93 @@
                 <view class="gradient-preview" style="background: linear-gradient({{item.direction}}, {{item.color1}}, {{item.color2}});"></view>
               </view>
             </view>
-            
             <!-- 纯色选择 -->
-            <view wx:if="{{activeTab === 'solid'}}" class="bg-grid">
-              <view 
-                wx:for="{{solidColors}}" 
-                wx:key="*this"
-                class="bg-grid-item {{bgStyle === 'solid' && bgColor === item ? 'active' : ''}}"
-                bindtap="onSolidColorChange"
-                data-color="{{item}}"
-              >
-                <view class="color-preview" style="background-color: {{item}};"></view>
+            <view wx:if="{{activeTab === 'solid'}}" class="solid-section">
+              <text class="solid-section-title">预设颜色</text>
+              <view class="bg-grid">
+                <view 
+                  wx:for="{{solidColors}}" 
+                  wx:key="*this"
+                  class="bg-grid-item {{bgStyle === 'solid' && bgColor === item ? 'active' : ''}}"
+                  bindtap="onSolidColorChange"
+                  data-color="{{item}}"
+                >
+                  <view class="color-preview" style="background-color: {{item}};"></view>
+                </view>
+              </view>
+
+              <view class="setting-item">
+                <text>启用自定义颜色</text>
+                <switch checked="{{showCustomSolidPicker}}" bindchange="onCustomPickerToggle" color="#4ecdc4"/>
+              </view>
+
+              <view wx:if="{{showCustomSolidPicker}}">
+                <text class="solid-section-title">最近使用</text>
+                <view class="recent-color-grid">
+                  <view
+                    wx:for="{{recentSolidColors}}"
+                    wx:key="*this"
+                    class="recent-color-item {{bgStyle === 'solid' && bgColor === item ? 'active' : ''}}"
+                    bindtap="onSolidColorChange"
+                    data-color="{{item}}"
+                  >
+                    <view class="color-preview" style="background-color: {{item}};"></view>
+                  </view>
+                </view>
+
+                <text class="solid-section-title">颜色拾取</text>
+                <view
+                  id="solidSVPanel"
+                  class="solid-sv-panel"
+                  style="background-color: {{pickerBaseColor}};"
+                  bindtouchstart="onSVTouchStart"
+                  bindtouchmove="onSVTouchMove"
+                >
+                  <view class="solid-sv-white"></view>
+                  <view class="solid-sv-black"></view>
+                  <view
+                    class="solid-sv-cursor"
+                    style="left: {{pickerCursorX}}%; top: {{pickerCursorY}}%;"
+                  ></view>
+                </view>
+
+                <slider
+                  min="0"
+                  max="360"
+                  step="1"
+                  value="{{pickerHue}}"
+                  activeColor="#4ecdc4"
+                  backgroundColor="#e2e8f0"
+                  bindchanging="onHueChanging"
+                  bindchange="onHueChange"
+                />
+
+                <view class="solid-rgb-row">
+                  <view class="solid-rgb-input-wrap">
+                    <text class="solid-rgb-label">R</text>
+                    <input class="solid-rgb-input" type="number" value="{{pickerR}}" data-channel="r" bindinput="onRgbInput" />
+                  </view>
+                  <view class="solid-rgb-input-wrap">
+                    <text class="solid-rgb-label">G</text>
+                    <input class="solid-rgb-input" type="number" value="{{pickerG}}" data-channel="g" bindinput="onRgbInput" />
+                  </view>
+                  <view class="solid-rgb-input-wrap">
+                    <text class="solid-rgb-label">B</text>
+                    <input class="solid-rgb-input" type="number" value="{{pickerB}}" data-channel="b" bindinput="onRgbInput" />
+                  </view>
+                </view>
+
+                <view class="solid-custom-row">
+                  <input
+                    class="solid-color-input"
+                    type="text"
+                    value="{{customSolidColor}}"
+                    maxlength="7"
+                    placeholder="#RRGGBB"
+                    bindinput="onCustomSolidColorInput"
+                  />
+                  <view class="solid-color-apply" bindtap="onApplyCustomSolidColor">应用</view>
+                </view>
               </view>
             </view>
             
@@ -138,7 +214,6 @@
               </view>
             </view>
             
-            <!-- 图片上传 - 3x3 大区域 -->
             <view wx:if="{{activeTab === 'custom'}}" class="custom-upload-grid">
               <view class="custom-upload-item {{bgStyle === 'custom' && bgImage ? 'active' : ''}}" bindtap="onUploadBackground">
                 <view wx:if="{{!bgImage}}" class="upload-placeholder-large">
@@ -224,6 +299,15 @@
             </view>
 
             <view wx:if="{{enableFooter}}" class="footer-settings">
+              <view class="setting-item">
+                <text>位置</text>
+                <view class="segmented-control">
+                  <view class="segment {{footerPosition === 'left' ? 'active' : ''}}" bindtap="onFooterPositionChange" data-position="left">左</view>
+                  <view class="segment {{footerPosition === 'center' ? 'active' : ''}}" bindtap="onFooterPositionChange" data-position="center">中</view>
+                  <view class="segment {{footerPosition === 'right' ? 'active' : ''}}" bindtap="onFooterPositionChange" data-position="right">右</view>
+                </view>
+              </view>
+
               <view class="setting-item column">
                 <text class="setting-label">作者</text>
                 <input 
@@ -284,3 +368,4 @@
     </button>
   </view>
 </view>
+

@@ -1,5 +1,5 @@
 // miniprogram/utils/canvas.js
-// Canvas 图片合成引擎
+// Canvas 绘制工具类
 
 class TextToImage {
   constructor() {
@@ -9,8 +9,8 @@ class TextToImage {
   }
 
   /**
-   * 初始化 Canvas
-   * @param {string} canvasId - Canvas 元素 ID
+   * 初始化 Canvas 节点与上下文
+   * @param {string} canvasId - Canvas 选择器 ID
    */
   async init(canvasId) {
     return new Promise((resolve, reject) => {
@@ -32,16 +32,16 @@ class TextToImage {
   }
 
   /**
-   * 检查 Canvas 是否就绪
+   * 判断 Canvas 是否已初始化完成
    */
   isReady() {
     return !!(this.canvas && this.ctx);
   }
 
   /**
-   * 设置 Canvas 尺寸
-   * @param {number} width - 宽度
-   * @param {number} height - 高度
+   * 设置 Canvas 实际像素尺寸
+   * @param {number} width - 画布宽度
+   * @param {number} height - 画布高度
    */
   setSize(width, height) {
     if (!this.isReady()) return;
@@ -51,8 +51,8 @@ class TextToImage {
   }
 
   /**
-   * 绘制背景
-   * @param {Object} options - 背景选项
+   * 根据配置绘制背景
+   * @param {Object} options - 背景配置项
    */
   async drawBackground(options) {
     if (!this.isReady()) return;
@@ -63,7 +63,6 @@ class TextToImage {
 
     if (bgStyle === 'gradient') {
       const g = gradients[bgIndex] || gradients[0];
-      // 根据 direction 计算渐变起点和终点
       let x1 = 0, y1 = 0, x2 = width, y2 = height;
       const direction = g.direction || '135deg';
       
@@ -80,10 +79,10 @@ class TextToImage {
         case '270deg':  // 从右到左
           x1 = width; y1 = height / 2; x2 = 0; y2 = height / 2;
           break;
-        case '45deg':   // 左下到右上
+        case '45deg':
           x1 = 0; y1 = height; x2 = width; y2 = 0;
           break;
-        case '135deg':  // 左上到右下（默认）
+        case '135deg':
         default:
           x1 = 0; y1 = 0; x2 = width; y2 = height;
           break;
@@ -100,7 +99,7 @@ class TextToImage {
       ctx.fillRect(0, 0, width, height);
       return Promise.resolve();
     } else if (bgStyle === 'texture' && textures) {
-      // 绘制纹理背景
+      // 纹理背景
       const texture = textures[textureIndex] || textures[0];
       return this.drawTextureBackground(texture, width, height);
     } else if (bgStyle === 'custom' && bgImage) {
@@ -123,8 +122,8 @@ class TextToImage {
   }
 
   /**
-   * 解析 Markdown 文本为样式段落
-   * 支持：**粗体**、*斜体*、__下划线__、==高亮==
+   * 解析 Markdown 文本为样式片段
+   * 支持 `**加粗**`、`*斜体*`、`__下划线__`、`==高亮==`
    */
   parseMarkdown(text) {
     const segments = [];
@@ -198,7 +197,7 @@ class TextToImage {
   }
 
   /**
-   * 解析 editor 富文本 HTML 为样式段落
+   * 解析编辑器产出的 HTML 为样式片段
    */
   parseRichTextHtml(html = '') {
     if (!html) return [];
@@ -273,8 +272,8 @@ class TextToImage {
   }
 
   /**
-   * 绘制文字（支持 Markdown）
-   * @param {Object} options - 文字选项
+   * 绘制正文文本，支持 Markdown / 富文本片段
+   * @param {Object} options - 文本绘制配置
    */
   drawText(options) {
     if (!this.isReady()) return;
@@ -319,7 +318,6 @@ class TextToImage {
       default: startX = width / 2;
     }
 
-    // 解析格式文本（优先 rich text，回退 markdown）
     let segments;
     if (!enableMarkdown) {
       segments = [{ text, bold: false, italic: false, underline: false, highlight: false, newline: false }];
@@ -330,13 +328,12 @@ class TextToImage {
 
     const hasRenderableText = segments.some(seg => !seg.newline && seg.text && seg.text.trim() !== '');
 
-    // 如果没有文字，显示提示文字
     if (!hasRenderableText) {
       ctx.save();
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.font = `${fontSize * 0.8}px ${fontFamily}`;
       ctx.textAlign = 'center';
-      const hintText = '请输入文字';
+      const hintText = 'Enter text';
       const hintX = width / 2;
       const hintY = height / 2 - fontSize * 0.4;
       ctx.fillText(hintText, hintX, hintY);
@@ -344,19 +341,16 @@ class TextToImage {
       return;
     }
     
-    // 将段落分行
     const lines = this.wrapMarkdownLines(segments, maxWidth, fontSize, fontFamily);
     
     // 计算起始 Y 坐标（垂直居中）
     const textBlockHeight = lines.length * lineHeightPx;
     const startY = (height - textBlockHeight) / 2;
 
-    // 绘制每一行
     ctx.textBaseline = 'top';
     lines.forEach((line, lineIndex) => {
       const y = startY + lineIndex * lineHeightPx;
       
-      // 计算整行宽度以确定起始 X
       let lineWidth = 0;
       line.forEach(seg => {
         ctx.font = `${seg.bold ? 'bold' : 'normal'} ${fontSize}px ${fontFamily}`;
@@ -370,13 +364,13 @@ class TextToImage {
         x = startX - lineWidth;
       }
       
-      // 绘制每个片段
+      // 逐片段绘制（处理加粗/斜体/下划线/高亮）
       line.forEach(seg => {
         const fontStyle = seg.italic ? 'italic' : 'normal';
         const fontWeight = seg.bold ? 'bold' : 'normal';
         ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
         
-        // 高亮背景
+        // 绘制高亮背景
         if (seg.highlight) {
           const textWidth = ctx.measureText(seg.text).width;
           ctx.save();
@@ -388,7 +382,6 @@ class TextToImage {
         ctx.fillStyle = fontColor;
         ctx.fillText(seg.text, x, y);
         
-        // 下划线
         if (seg.underline) {
           const textWidth = ctx.measureText(seg.text).width;
           ctx.save();
@@ -407,7 +400,7 @@ class TextToImage {
   }
 
   /**
-   * 将 Markdown 段落分行
+   * 按宽度对 Markdown 片段进行换行
    */
   wrapMarkdownLines(segments, maxWidth, fontSize, fontFamily) {
     const lines = [];
@@ -419,7 +412,7 @@ class TextToImage {
     segments.forEach(seg => {
       const text = seg.text;
       if (!text) {
-        // 换行标记
+        // 空文本（通常是换行片段）
         if (currentLine.length > 0) {
           lines.push(currentLine);
           currentLine = [];
@@ -440,7 +433,6 @@ class TextToImage {
         const testWidth = ctx.measureText(testText).width;
         
         if (testWidth > maxWidth - currentLineWidth && currentText.length > 0) {
-          // 当前片段需要换行
           if (currentText) {
             currentLine.push({ ...seg, text: currentText });
           }
@@ -453,7 +445,7 @@ class TextToImage {
         }
       }
       
-      // 添加剩余文本到当前行
+      // 将当前剩余文本加入当前行
       if (currentText) {
         currentLine.push({ ...seg, text: currentText });
         const fontStyle = seg.italic ? 'italic' : 'normal';
@@ -463,7 +455,6 @@ class TextToImage {
       }
     });
     
-    // 添加最后一行
     if (currentLine.length > 0) {
       lines.push(currentLine);
     }
@@ -472,7 +463,7 @@ class TextToImage {
   }
 
   /**
-   * 文字自动换行（支持 \n）
+   * 普通文本换行（按字符测量宽度）
    */
   wrapText(text, maxWidth) {
     const paragraphs = text.split('\n');
@@ -500,19 +491,17 @@ class TextToImage {
   }
 
   /**
-   * 绘制自定义背景图片
-   * 小程序 Canvas 2D 真机加载本地图片的解决方案
+   * 绘制自定义背景图（cover 裁剪）
+   * 优先读取 base64，失败时回退到路径加载
    */
   drawCustomBackground(bgImage, width, height) {
     return new Promise((resolve) => {
       
-      // 方案：使用 wx.getImageInfo 获取图片尺寸
-      // 然后使用文件系统读取为 base64 加载
       wx.getImageInfo({
         src: bgImage,
         success: (imageInfo) => {
           
-          // 计算图片绘制尺寸
+          // 计算 cover 裁剪尺寸
           const imgRatio = imageInfo.width / imageInfo.height;
           const canvasRatio = width / height;
           let drawWidth, drawHeight, offsetX, offsetY;
@@ -529,7 +518,6 @@ class TextToImage {
             offsetY = (height - drawHeight) / 2;
           }
           
-          // 真机方案：读取文件为 base64 再加载
           const fs = wx.getFileSystemManager();
           fs.readFile({
             filePath: bgImage,
@@ -558,7 +546,6 @@ class TextToImage {
               img.src = base64Url;
             },
             fail: (err) => {
-              // 降级：尝试直接使用路径
               this.loadImageWithPath(bgImage, imageInfo, offsetX, offsetY, drawWidth, drawHeight, width, height, resolve);
             }
           });
@@ -573,7 +560,7 @@ class TextToImage {
   }
 
   /**
-   * 使用路径加载图片（降级方案）
+   * 回退方案：直接使用本地路径加载图片
    */
   loadImageWithPath(path, imageInfo, offsetX, offsetY, drawWidth, drawHeight, width, height, resolve) {
     const img = this.canvas.createImage();
@@ -600,14 +587,13 @@ class TextToImage {
 
   /**
    * 绘制纹理背景
-   * 使用 Canvas 绘制12种纹理图案
+   * 基于 Canvas 2D 按不同 pattern 生成图案
    */
   drawTextureBackground(texture, width, height) {
     return new Promise((resolve) => {
       const ctx = this.ctx;
       const pattern = texture.pattern;
       
-      // 填充背景色
       ctx.fillStyle = texture.bgColor || '#ffffff';
       ctx.fillRect(0, 0, width, height);
       
@@ -617,7 +603,7 @@ class TextToImage {
       ctx.lineWidth = 1;
       
       switch(pattern) {
-        case 'paper': // 纸张 - 细微噪点纹理
+        case 'paper': // 纸张噪点纹理
           for (let i = 0; i < 500; i++) {
             const x = Math.random() * width;
             const y = Math.random() * height;
@@ -626,7 +612,7 @@ class TextToImage {
           }
           break;
           
-        case 'grid': // 方格
+        case 'grid': // 网格
           const gridSize = 25;
           ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
           ctx.lineWidth = 1;
@@ -642,7 +628,7 @@ class TextToImage {
           ctx.stroke();
           break;
           
-        case 'dots': // 圆点
+        case 'dots': // 点阵
           const dotSpacing = 30;
           ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
           for (let x = dotSpacing/2; x < width; x += dotSpacing) {
@@ -707,7 +693,7 @@ class TextToImage {
           ctx.stroke();
           break;
           
-        case 'checkerboard': // 棋盘
+        case 'checkerboard': // 棋盘格
           const checkSize = 25;
           ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
           for (let x = 0; x < width; x += checkSize) {
@@ -719,7 +705,7 @@ class TextToImage {
           }
           break;
           
-        case 'noise': // 噪点 - 密集噪点
+        case 'noise': // 强噪点
           ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
           for (let i = 0; i < 8000; i++) {
             const x = Math.floor(Math.random() * width);
@@ -728,7 +714,7 @@ class TextToImage {
           }
           break;
           
-        case 'waves': // 波浪 - 波浪线
+        case 'waves':
           const waveSpacing = 30;
           ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
           ctx.lineWidth = 1.5;
@@ -743,13 +729,13 @@ class TextToImage {
           }
           break;
           
-        case 'hexagon': // 六边 - 六边形蜂窝图案
+        case 'hexagon':
           const hexRadius = 18;
           const hexW = hexRadius * Math.sqrt(3);
           const hexH = hexRadius * 2;
           ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
           ctx.lineWidth = 1;
-          // 计算需要绘制的行列数，确保覆盖整个画布
+          // 六边形错位排布，偶数/奇数行横向错半格
           const cols = Math.ceil(width / hexW) + 1;
           const rows = Math.ceil(height / (hexH * 0.75)) + 1;
           for (let row = 0; row < rows; row++) {
@@ -761,7 +747,7 @@ class TextToImage {
           }
           break;
           
-        case 'dotgrid': // 点阵 - 网格交叉点
+        case 'dotgrid':
           const dgSpacing = 25;
           ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
           for (let x = 0; x <= width; x += dgSpacing) {
@@ -783,7 +769,7 @@ class TextToImage {
   }
 
   /**
-   * 绘制六边形
+   * 绘制单个六边形路径
    */
   drawHexagon(ctx, x, y, size) {
     ctx.beginPath();
@@ -799,54 +785,77 @@ class TextToImage {
   }
 
   /**
-   * 绘制页脚
-   * @param {Object} options - 页脚选项
+   * 绘制底部作者/日期信息
+   * @param {Object} options - 底部信息配置
    */
   drawFooter(options) {
     if (!this.isReady()) return;
     const {
       author = '',
       date = '',
+      position = 'center',
       fontSize = 24,
       fontColor = '#ffffff',
       fontFamily = 'sans-serif',
       width,
-      height,
-      padding = 40
+      height
     } = options;
 
     const ctx = this.ctx;
     ctx.save();
-    
-    // 页脚位置（底部）
-    const footerY = height - padding - fontSize;
-    const centerX = width / 2;
-    
+
+    // Fixed footer inset from canvas edges; independent from content padding.
+    const footerInsetX = 40;
+    const footerInsetY = 36;
+    const footerY = height - footerInsetY;
+    const lineGap = Math.max(fontSize + 8, Math.round(fontSize * 1.35));
+
     ctx.font = `${fontSize}px ${fontFamily}`;
     ctx.fillStyle = fontColor;
-    ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.globalAlpha = 0.7;
-    
-    // 组合页脚文字
-    let footerText = '';
-    if (author && date) {
-      footerText = `@${author} · ${date}`;
-    } else if (author) {
-      footerText = `@${author}`;
+
+    const safePosition = ['left', 'center', 'right'].indexOf(position) >= 0 ? position : 'center';
+    const authorText = author ? `@${author}` : '';
+
+    if (safePosition === 'center') {
+      ctx.textAlign = 'center';
+      const centerX = width / 2;
+      let footerText = '';
+      if (authorText && date) {
+        footerText = `${authorText} ? ${date}`;
+      } else if (authorText) {
+        footerText = authorText;
+      } else if (date) {
+        footerText = date;
+      }
+
+      if (footerText) {
+        ctx.fillText(footerText, centerX, footerY);
+      }
+
+      ctx.restore();
+      return;
+    }
+
+    const isRight = safePosition === 'right';
+    ctx.textAlign = isRight ? 'right' : 'left';
+    const x = isRight ? (width - footerInsetX) : footerInsetX;
+
+    if (authorText && date) {
+      ctx.fillText(authorText, x, footerY - lineGap);
+      ctx.fillText(date, x, footerY);
+    } else if (authorText) {
+      ctx.fillText(authorText, x, footerY);
     } else if (date) {
-      footerText = date;
+      ctx.fillText(date, x, footerY);
     }
-    
-    if (footerText) {
-      ctx.fillText(footerText, centerX, footerY);
-    }
-    
+
     ctx.restore();
   }
 
   /**
-   * 导出图片
+   * 导出为临时图片路径
    */
   async toTempFilePath() {
     if (!this.isReady()) return Promise.reject(new Error('Canvas not ready'));
